@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/python_on_save.ps1",
+        "matcher": "\\.py$",
+        "timeout": 60
+      },
+      {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/migration_summary.ps1",
+        "matcher": "(^|\\\\)migrations(\\\\).+\\.py$",
+        "timeout": 30
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/test_failure_triage.ps1",
+        "matcher": "^Shell$",
+        "timeout": 30
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "pwsh -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/pr_draft_before_commit_or_pr.ps1",
+        "matcher": "^(git\\s+commit|gh\\s+pr\\s+create)\\b",
+        "timeout": 30,
+        "failClosed": false
+      }
+    ]
+  }
+}

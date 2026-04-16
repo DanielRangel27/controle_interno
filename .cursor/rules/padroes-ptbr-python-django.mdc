@@ -1,0 +1,52 @@
+---
+description: Padrões do projeto (PT-BR, Python/Django/API/DB/Git/Segurança)
+alwaysApply: true
+---
+
+# Linguagem e tom
+
+- Responda sempre em **PT-BR**.
+- Código, nomes de variáveis/funções/classes e mensagens de log em **inglês**.
+
+# Python
+
+- Use **ruff** para lint + format. **Não** usar flake8.
+- Tipagem obrigatória em funções públicas (interfaces da app): anotações + retorno.
+- **mypy** no CI (o código novo deve ser compatível com mypy).
+- Evite `print`; use `logging`.
+
+Exemplo de logging:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+
+logger.info("user created", extra={"user_id": user.id})
+```
+
+# Django
+
+- Views sempre em **CBV** (Class-Based Views).
+- Não colocar lógica de negócio em `views.py`; mover para `services.py`.
+- Sempre escrever testes para **serializers** e **services**.
+
+# API
+
+- Erros HTTP devem seguir o formato padrão:
+
+```json
+{ "code": "SOME_ERROR_CODE", "message": "Human readable message", "details": {} }
+```
+
+# Banco / ORM
+
+- Ao retornar listas, prefira `select_related` / `prefetch_related` para evitar N+1.
+
+# Git / PR
+
+- Mensagens de commit no estilo: `feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`.
+
+# Segurança (Django `settings.py`)
+
+- Aplicar sempre as melhores práticas de segurança do Django (ex.: `DEBUG=False` em produção, `ALLOWED_HOSTS` restrito, `SECURE_*`, `CSRF_*`, `SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`, HSTS, `SECURE_PROXY_SSL_HEADER` quando aplicável).
