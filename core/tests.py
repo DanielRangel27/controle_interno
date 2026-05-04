@@ -6,6 +6,7 @@ import datetime as dt
 import os
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -388,7 +389,10 @@ class BackupGitCommandTests(TestCase):
         self.assertFalse(second.pushed)
 
 
-@override_settings(BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True)
+@override_settings(
+    BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True,
+    BACKUP_GIT_AUTO_COOLDOWN_SECONDS=0,
+)
 class ProcessAutoBackupSignalTests(TestCase):
     """Signal tests for automatic backup on process CRUD changes."""
 
@@ -403,6 +407,42 @@ class ProcessAutoBackupSignalTests(TestCase):
 
         self.assertEqual(mocked_call.call_count, 3)
         mocked_call.assert_called_with("backup_git")
+
+    def test_respects_cooldown_window(self) -> None:
+        from geral.models import ProcessoGeral
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            state_file = Path(tmp_dir) / "last_run.txt"
+            state_file.write_text(str(time.time()), encoding="utf-8")
+            with override_settings(
+                BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True,
+                BACKUP_GIT_AUTO_COOLDOWN_SECONDS=120,
+                BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE=state_file,
+            ):
+                with patch("core.process_backup_signals.call_command") as mocked_call:
+                    ProcessoGeral.objects.create(numero_processo="9003/26", ano=2026)
+
+        mocked_call.assert_not_called()
+
+    def test_updates_cooldown_state_file_after_success(self) -> None:
+        from geral.models import ProcessoGeral
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            state_file = Path(tmp_dir) / "last_run.txt"
+            state_file.write_text("1.0", encoding="utf-8")
+            with override_settings(
+                BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True,
+                BACKUP_GIT_AUTO_COOLDOWN_SECONDS=120,
+                BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE=state_file,
+            ):
+                with patch("core.process_backup_signals.call_command") as mocked_call:
+                    with patch(
+                        "core.process_backup_signals.time.time",
+                        side_effect=[1000.0, 1000.0],
+                    ):
+                        ProcessoGeral.objects.create(numero_processo="9004/26", ano=2026)
+                mocked_call.assert_called_once_with("backup_git")
+                self.assertEqual(state_file.read_text(encoding="utf-8").strip(), "1000.0")
 
 
 @override_settings(BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=False)

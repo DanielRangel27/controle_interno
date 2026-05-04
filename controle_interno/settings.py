@@ -26,6 +26,16 @@ def _env_list(name: str, default: list[str]) -> list[str]:
     return [item.strip() for item in raw.split(",") if item.strip()]
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 SECRET_KEY = os.getenv(
     "DJANGO_SECRET_KEY",
     "django-insecure-$k7+92(aun91*6#t!+amj7m2b^)_z&^az5-f_0&@8et_dgb)s2",
@@ -173,4 +183,8 @@ BACKUP_GIT_TARGET_SUBDIR = os.getenv("BACKUP_GIT_TARGET_SUBDIR", "procuradoria")
 BACKUP_GIT_AUTO_ON_PROCESS_CHANGE = _env_bool(
     "BACKUP_GIT_AUTO_ON_PROCESS_CHANGE",
     default=False,
+)
+BACKUP_GIT_AUTO_COOLDOWN_SECONDS = _env_int("BACKUP_GIT_AUTO_COOLDOWN_SECONDS", 120)
+BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE = Path(
+    os.getenv("BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE", BASE_DIR / ".backup_auto_last_run")
 )

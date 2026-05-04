@@ -7,6 +7,8 @@ on ``ProcessoGeral`` or ``ProcessoFazendaria`` triggers ``manage.py backup_git``
 from __future__ import annotations
 
 import logging
+import time
+from pathlib import Path
 from typing import Any
 
 from django.apps import apps
@@ -27,11 +29,60 @@ def _auto_backup_enabled() -> bool:
     return bool(getattr(settings, "BACKUP_GIT_AUTO_ON_PROCESS_CHANGE", False))
 
 
+def _cooldown_seconds() -> int:
+    raw = getattr(settings, "BACKUP_GIT_AUTO_COOLDOWN_SECONDS", 120)
+    try:
+        return max(0, int(raw))
+    except (TypeError, ValueError):
+        return 120
+
+
+def _cooldown_state_file() -> Path:
+    default_path = Path(settings.BASE_DIR) / ".backup_auto_last_run"
+    raw = getattr(settings, "BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE", default_path)
+    return Path(raw)
+
+
+def _last_run_timestamp(path: Path) -> float | None:
+    try:
+        content = path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return None
+    if not content:
+        return None
+    try:
+        return float(content)
+    except ValueError:
+        return None
+
+
+def _update_last_run_timestamp(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(str(time.time()), encoding="utf-8")
+
+
+def _should_skip_by_cooldown() -> bool:
+    cooldown = _cooldown_seconds()
+    if cooldown <= 0:
+        return False
+    state_file = _cooldown_state_file()
+    last = _last_run_timestamp(state_file)
+    if last is None:
+        return False
+    return (time.time() - last) < cooldown
+
+
 def _run_backup(*, reason: str) -> None:
     if not _auto_backup_enabled():
         return
+    if _should_skip_by_cooldown():
+        logger.info("auto backup skipped by cooldown", extra={"reason": reason})
+        return
     try:
         call_command("backup_git")
+        _update_last_run_timestamp(_cooldown_state_file())
     except Exception:
         logger.exception("auto backup failed", extra={"reason": reason})
 
