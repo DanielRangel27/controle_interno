@@ -125,17 +125,15 @@ class FiltroProcessoForm(forms.Form):
         queryset=Procurador.objects.none(),
         empty_label="Todos",
     )
-    destino = forms.ModelChoiceField(
+    destino = forms.CharField(
         label="Destino",
         required=False,
-        queryset=Setor.objects.none(),
-        empty_label="Todos",
+        widget=forms.TextInput(attrs={"placeholder": "Digite o destino"}),
     )
-    assunto = forms.ModelChoiceField(
+    assunto = forms.CharField(
         label="Assunto",
         required=False,
-        queryset=Assunto.objects.none(),
-        empty_label="Todos",
+        widget=forms.TextInput(attrs={"placeholder": "Digite o assunto"}),
     )
     tipo_parecer = forms.ModelChoiceField(
         label="Parecer",
@@ -157,10 +155,6 @@ class FiltroProcessoForm(forms.Form):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.fields["responsavel"].queryset = Procurador.objects.filter(
-            ativo=True, modulo__in=[Modulo.GERAL, Modulo.AMBOS]
-        )
-        self.fields["destino"].queryset = Setor.objects.filter(ativo=True)
-        self.fields["assunto"].queryset = Assunto.objects.filter(
             ativo=True, modulo__in=[Modulo.GERAL, Modulo.AMBOS]
         )
         self.fields["tipo_parecer"].queryset = TipoParecer.objects.filter(ativo=True)

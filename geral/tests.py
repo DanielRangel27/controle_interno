@@ -31,14 +31,19 @@ class ProcessoFiltersTests(TestCase):
         self.assertIsNone(filters.ano)
         self.assertIsNone(filters.responsavel_id)
 
-    def test_from_querydict_parses_integers(self) -> None:
+    def test_from_querydict_parses_text_fields(self) -> None:
         filters = ProcessoFilters.from_querydict(
-            {"ano": "2026", "responsavel": "5", "destino": "9", "assunto": "11"}
+            {
+                "ano": "2026",
+                "responsavel": "5",
+                "destino": "sepr",
+                "assunto": "perm",
+            }
         )
         self.assertEqual(filters.ano, 2026)
         self.assertEqual(filters.responsavel_id, 5)
-        self.assertEqual(filters.destino_id, 9)
-        self.assertEqual(filters.assunto_id, 11)
+        self.assertEqual(filters.destino, "sepr")
+        self.assertEqual(filters.assunto, "perm")
 
     def test_from_querydict_parses_dates_and_tipo_parecer(self) -> None:
         filters = ProcessoFilters.from_querydict(
@@ -136,6 +141,10 @@ class ProcessoServicesTests(TestCase):
 
     def test_filter_by_tipo_parecer(self) -> None:
         qs = list_processos(ProcessoFilters(tipo_parecer_id=self.tp_p.pk))
+        self.assertEqual(list(qs), [self.p1])
+
+    def test_filter_by_text_destino_and_assunto(self) -> None:
+        qs = list_processos(ProcessoFilters(destino="urbana", assunto="perm"))
         self.assertEqual(list(qs), [self.p1])
 
     def test_export_columns_handle_co_responsavel(self) -> None:

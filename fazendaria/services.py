@@ -25,8 +25,8 @@ class ProcessoFilters:
     ano: int | None = None
     situacao: str = ""
     procurador_id: int | None = None
-    destino_id: int | None = None
-    assunto_id: int | None = None
+    destino: str = ""
+    assunto: str = ""
     tipo_parecer_id: int | None = None
     data_inicio: dt.date | None = None
     data_fim: dt.date | None = None
@@ -56,8 +56,8 @@ class ProcessoFilters:
             ano=_int("ano"),
             situacao=(data.get("situacao") or "").strip(),
             procurador_id=_int("procurador"),
-            destino_id=_int("destino"),
-            assunto_id=_int("assunto"),
+            destino=(data.get("destino") or "").strip(),
+            assunto=(data.get("assunto") or "").strip(),
             tipo_parecer_id=_int("tipo_parecer"),
             data_inicio=_date("data_inicio"),
             data_fim=_date("data_fim"),
@@ -86,10 +86,10 @@ def filter_processos(
         qs = qs.filter(situacao=filters.situacao)
     if filters.procurador_id:
         qs = qs.filter(procurador_id=filters.procurador_id)
-    if filters.destino_id:
-        qs = qs.filter(destino_id=filters.destino_id)
-    if filters.assunto_id:
-        qs = qs.filter(assunto_id=filters.assunto_id)
+    if filters.destino:
+        qs = qs.filter(destino__nome__icontains=filters.destino)
+    if filters.assunto:
+        qs = qs.filter(assunto__nome__icontains=filters.assunto)
     if filters.tipo_parecer_id:
         qs = qs.filter(tipos_parecer__id=filters.tipo_parecer_id).distinct()
     if filters.data_inicio:
