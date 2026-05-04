@@ -169,3 +169,8 @@ BACKUP_GIT_REMOTE = os.getenv(
 )
 BACKUP_GIT_BRANCH = os.getenv("BACKUP_GIT_BRANCH", "main")
 BACKUP_GIT_DIR = Path(os.getenv("BACKUP_GIT_DIR", BASE_DIR / "_backup_repo"))
+BACKUP_GIT_TARGET_SUBDIR = os.getenv("BACKUP_GIT_TARGET_SUBDIR", "procuradoria")
+BACKUP_GIT_AUTO_ON_PROCESS_CHANGE = _env_bool(
+    "BACKUP_GIT_AUTO_ON_PROCESS_CHANGE",
+    default=False,
+)

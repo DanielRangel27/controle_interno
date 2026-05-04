@@ -9,7 +9,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from .importers import (
     coerce_date,
@@ -363,6 +363,7 @@ class BackupGitCommandTests(TestCase):
         self.assertTrue(result.committed)
         self.assertTrue(result.pushed)
         self.assertTrue(result.dump_path.exists())
+        self.assertEqual(result.dump_path.parent.parent.name, "procuradoria")
         self.assertEqual(result.dump_path.parent.name, "backups")
         # Remote must have received the new commit.
         log = subprocess.run(
@@ -385,6 +386,34 @@ class BackupGitCommandTests(TestCase):
             "Backup criou commit vazio quando nada mudou.",
         )
         self.assertFalse(second.pushed)
+
+
+@override_settings(BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True)
+class ProcessAutoBackupSignalTests(TestCase):
+    """Signal tests for automatic backup on process CRUD changes."""
+
+    def test_runs_backup_on_process_create_update_delete(self) -> None:
+        from geral.models import ProcessoGeral
+
+        with patch("core.process_backup_signals.call_command") as mocked_call:
+            process = ProcessoGeral.objects.create(numero_processo="9001/26", ano=2026)
+            process.observacoes = "Atualizado por teste"
+            process.save(update_fields=["observacoes"])
+            process.delete()
+
+        self.assertEqual(mocked_call.call_count, 3)
+        mocked_call.assert_called_with("backup_git")
+
+
+@override_settings(BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=False)
+class ProcessAutoBackupDisabledTests(TestCase):
+    def test_does_not_run_backup_when_flag_is_disabled(self) -> None:
+        from geral.models import ProcessoGeral
+
+        with patch("core.process_backup_signals.call_command") as mocked_call:
+            ProcessoGeral.objects.create(numero_processo="9002/26", ano=2026)
+
+        mocked_call.assert_not_called()
 
 
 class CoreServiceReportTests(TestCase):

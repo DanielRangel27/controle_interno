@@ -43,6 +43,7 @@ class BackupConfig:
     branch: str
     repo_dir: Path
     db_path: Path
+    target_subdir: str = "procuradoria"
 
     @classmethod
     def from_settings(cls) -> "BackupConfig":
@@ -54,7 +55,16 @@ class BackupConfig:
         branch = str(getattr(settings, "BACKUP_GIT_BRANCH", "main")).strip() or "main"
         repo_dir = Path(getattr(settings, "BACKUP_GIT_DIR", settings.BASE_DIR / "_backup_repo"))
         db_path = Path(settings.DATABASES["default"]["NAME"])
-        return cls(remote=remote, branch=branch, repo_dir=repo_dir, db_path=db_path)
+        target_subdir = str(
+            getattr(settings, "BACKUP_GIT_TARGET_SUBDIR", "procuradoria")
+        ).strip() or "procuradoria"
+        return cls(
+            remote=remote,
+            branch=branch,
+            repo_dir=repo_dir,
+            db_path=db_path,
+            target_subdir=target_subdir,
+        )
 
 
 def run_git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -112,7 +122,7 @@ def ensure_repo(config: BackupConfig) -> None:
 def write_dump(config: BackupConfig, timestamp: datetime) -> Path:
     """Run ``dumpdata`` into the backup repository and return the file path."""
 
-    backups_dir = config.repo_dir / "backups"
+    backups_dir = config.repo_dir / config.target_subdir / "backups"
     backups_dir.mkdir(parents=True, exist_ok=True)
     target = backups_dir / f"db-{timestamp:%Y-%m-%d}.json"
     with open(target, "w", encoding="utf-8") as fh:
@@ -142,7 +152,9 @@ def copy_sqlite(config: BackupConfig) -> Path | None:
         return None
     if config.db_path.suffix not in {".sqlite", ".sqlite3", ".db"}:
         return None
-    target = config.repo_dir / "db.sqlite3"
+    target_dir = config.repo_dir / config.target_subdir
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target = target_dir / "db.sqlite3"
     shutil.copy2(config.db_path, target)
     return target
 
