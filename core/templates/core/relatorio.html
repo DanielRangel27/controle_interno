@@ -1,0 +1,93 @@
+{% extends "core/base.html" %}
+
+{% block title %}Relatório · {{ report.label }}{% endblock %}
+
+{% block content %}
+  {% if not report %}
+    <section class="page-header">
+      <h1>Relatório indisponível</h1>
+      <p>Não foi possível carregar os dados deste módulo.</p>
+    </section>
+  {% else %}
+    <section class="page-header" style="display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap;">
+      <div>
+        <h1 style="margin:0;">{{ report.label }}</h1>
+        <p style="margin:4px 0 0; color: var(--color-fg-muted);">
+          Indicadores agregados e distribuição mensal.
+        </p>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <a class="btn" href="{% url report.list_url_name %}">Ver listagem</a>
+        <a class="btn btn--primary" href="{% url report.create_url_name %}">Novo processo</a>
+      </div>
+    </section>
+
+    <h2 class="section-title">Visão geral</h2>
+    <div class="kpi-row">
+      <div class="kpi">
+        <span class="kpi__value">{{ report.total }}</span>
+        <span class="kpi__label">Total no banco</span>
+      </div>
+      {% for counter in report.counters %}
+        <div class="kpi {% if counter.css_modifier %}kpi--{{ counter.css_modifier }}{% endif %}">
+          <span class="kpi__value">{{ counter.value }}</span>
+          <span class="kpi__label">{{ counter.label }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    <h2 class="section-title">Processos por mês (últimos 12 meses)</h2>
+    <div class="card">
+      {% if report.monthly_max == 0 %}
+        <p style="color: var(--color-fg-muted); margin: 0;">Sem dados de movimentação no período.</p>
+      {% else %}
+        <div class="bar-chart">
+          {% for bucket in report.monthly %}
+            {% if report.monthly_max > 0 %}
+              <div class="bar-chart__bar" title="{{ bucket.label }}: {{ bucket.count }}">
+                <span class="bar-chart__count">{{ bucket.count }}</span>
+                <div
+                  class="bar-chart__fill"
+                  style="height: {% widthratio bucket.count report.monthly_max 100 %}%;"
+                ></div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="bar-chart__labels">
+          {% for bucket in report.monthly %}
+            <span>{{ bucket.label }}</span>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div class="dashboard-grid" style="margin-top: 18px;">
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Top procuradores</h2>
+        {% include "core/_partials/top_list.html" with items=report.top_procuradores %}
+      </div>
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Top assuntos</h2>
+        {% include "core/_partials/top_list.html" with items=report.top_assuntos %}
+      </div>
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Top destinos</h2>
+        {% include "core/_partials/top_list.html" with items=report.top_setores %}
+      </div>
+      <div class="card">
+        <h2 class="section-title" style="margin-top:0;">Top tipos de parecer</h2>
+        {% include "core/_partials/top_list.html" with items=report.top_pareceres %}
+      </div>
+    </div>
+
+    <h2 class="section-title">Exportar dados</h2>
+    <div class="card" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn" href="{% url report.export_csv_url_name 'csv' %}">Exportar CSV</a>
+      <a class="btn btn--primary" href="{% url report.export_xlsx_url_name 'xlsx' %}">Exportar XLSX</a>
+      <p style="margin: 0; color: var(--color-fg-muted); font-size: 13px;">
+        Aplique filtros na listagem antes de exportar para gerar um recorte.
+      </p>
+    </div>
+  {% endif %}
+{% endblock %}

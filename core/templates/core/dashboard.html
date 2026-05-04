@@ -1,0 +1,62 @@
+{% extends "core/base.html" %}
+
+{% block title %}Início - Controle Interno{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h1>Bem-vindo, {{ user.first_name|default:user.get_username }}</h1>
+    <p style="margin:0; color: var(--color-fg-muted);">
+      Visão consolidada dos processos das duas procuradorias.
+    </p>
+  </section>
+
+  <div class="card-grid">
+    {% for summary in summaries %}
+      <article class="card module-card">
+        <h2 class="module-card__title">{{ summary.label }}</h2>
+        <div class="module-card__stats">
+          <div class="module-card__stat">
+            <strong>{{ summary.total }}</strong>
+            <span>Total</span>
+          </div>
+          <div class="module-card__stat">
+            <strong>{{ summary.em_andamento }}</strong>
+            <span>Em andamento</span>
+          </div>
+          <div class="module-card__stat">
+            <strong>{{ summary.concluidos }}</strong>
+            <span>Concluídos</span>
+          </div>
+        </div>
+        <div class="module-card__actions">
+          <a class="btn btn--primary" href="{% url summary.list_url_name %}">Abrir lista</a>
+          <a class="btn" href="{% url summary.create_url_name %}">Novo processo</a>
+          {% if summary.relatorio_url_name %}
+            <a class="btn btn--ghost" href="{% url summary.relatorio_url_name %}">Relatório</a>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+
+  {% if recent %}
+    <h2 class="section-title">
+      <span>Últimos processos cadastrados</span>
+      <small>{{ recent|length }} mais recentes</small>
+    </h2>
+    <div class="card">
+      <div class="recent">
+        {% for item in recent %}
+          <a class="recent__item" href="{% url item.detail_url_name pk=item.pk %}">
+            <span class="recent__module">{{ item.modulo }}</span>
+            <span>
+              <strong>{{ item.numero }}</strong>
+              <span style="color: var(--color-fg-muted);">— {{ item.label|truncatechars:60 }}</span>
+            </span>
+            <span class="recent__date">{{ item.data|date:"d/m/Y" }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

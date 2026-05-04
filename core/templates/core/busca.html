@@ -1,0 +1,60 @@
+{% extends "core/base.html" %}
+
+{% block title %}Busca · {{ termo }}{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <h1>Busca global</h1>
+    <p style="margin:0; color: var(--color-fg-muted);">
+      Procura pelo número do processo, observação e (no Geral) apensos.
+    </p>
+  </section>
+
+  <form method="get" action="{% url 'core:busca' %}" class="card" style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+    <div style="flex:1; min-width: 240px;">
+      <label for="busca-q" style="display:block; font-size:12px; font-weight:600; color: var(--color-fg-muted); text-transform: uppercase;">Termo</label>
+      <input id="busca-q" type="search" name="q" value="{{ termo }}" class="form-control" autofocus />
+    </div>
+    <button type="submit" class="btn btn--primary">Buscar</button>
+  </form>
+
+  {% if termo %}
+    <div class="search-summary">
+      <strong>{{ resultados|length }}</strong> resultado(s) para
+      <strong>“{{ termo }}”</strong>
+    </div>
+
+    {% if resultados %}
+      <div class="card" style="padding:0;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th>Número</th>
+              <th>Ano</th>
+              <th>Assunto</th>
+              <th>Situação</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for hit in resultados %}
+              <tr>
+                <td><span class="recent__module">{{ hit.modulo }}</span></td>
+                <td><strong>{{ hit.numero }}</strong></td>
+                <td>{{ hit.ano }}</td>
+                <td>{{ hit.assunto }}</td>
+                <td>{{ hit.situacao_display }}</td>
+                <td style="text-align:right;">
+                  <a class="btn btn--ghost btn--sm" href="{% url hit.detail_url_name pk=hit.pk %}">Abrir</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p style="color: var(--color-fg-muted);">Nenhum processo encontrado.</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

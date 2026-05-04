@@ -1,0 +1,86 @@
+{% extends "core/base.html" %}
+
+{% block title %}Processo {{ processo.numero_processo }} - Geral{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <a href="{% url 'geral:lista' %}" style="font-size: 12px;">&larr; voltar para a lista</a>
+      <h1>Processo {{ processo.numero_processo }} <small style="color: var(--color-fg-muted);">/ {{ processo.ano }}</small></h1>
+    </div>
+    <div>
+      <a class="btn btn--primary" href="{% url 'geral:editar' processo.pk %}">Editar</a>
+    </div>
+  </section>
+
+  <article class="card">
+    <dl class="detail-grid">
+      <div>
+        <dt>Data de entrada</dt>
+        <dd>{{ processo.data_entrada|date:"d/m/Y"|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Apensos</dt>
+        <dd>{{ processo.apensos|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Distribuição</dt>
+        <dd>{{ processo.data_distribuicao|date:"d/m/Y"|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Responsável</dt>
+        <dd>
+          {{ processo.responsavel|default:"-" }}
+          {% if processo.responsavel_secundario %}
+            <div style="font-size: 12px; color: var(--color-fg-muted);">+ {{ processo.responsavel_secundario }}</div>
+          {% endif %}
+        </dd>
+      </div>
+      <div>
+        <dt>Assunto</dt>
+        <dd>{{ processo.assunto|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Situação</dt>
+        <dd>
+          <span class="badge
+            {% if processo.situacao == 'entregue' or processo.situacao == 'concluido' %}badge--success
+            {% elif processo.situacao == 'andamento' %}badge--info
+            {% elif processo.situacao == 'analise' %}badge--warning
+            {% else %}badge--danger{% endif %}">
+            {{ processo.get_situacao_display }}
+          </span>
+        </dd>
+      </div>
+      <div>
+        <dt>Data da saída</dt>
+        <dd>{{ processo.data_saida|date:"d/m/Y"|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Destino da saída</dt>
+        <dd>{{ processo.destino_saida|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Tipos de parecer</dt>
+        <dd>
+          {% for tp in processo.tipos_parecer.all %}
+            <span class="badge">{{ tp.codigo }} - {{ tp.nome }}</span>
+          {% empty %}-{% endfor %}
+        </dd>
+      </div>
+      <div>
+        <dt>Cadastrado por</dt>
+        <dd>{{ processo.criado_por|default:"-" }} em {{ processo.criado_em|date:"d/m/Y H:i" }}</dd>
+      </div>
+      <div>
+        <dt>Última atualização</dt>
+        <dd>{{ processo.atualizado_em|date:"d/m/Y H:i" }}</dd>
+      </div>
+    </dl>
+
+    {% if processo.observacoes %}
+      <h3>Observações</h3>
+      <p style="white-space: pre-wrap;">{{ processo.observacoes }}</p>
+    {% endif %}
+  </article>
+{% endblock %}

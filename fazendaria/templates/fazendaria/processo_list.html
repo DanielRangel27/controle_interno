@@ -1,0 +1,149 @@
+{% extends "core/base.html" %}
+
+{% block title %}Processos - Fazendária{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <h1>Procuradoria Fazendária</h1>
+      <p style="margin: 4px 0 0; color: var(--color-fg-muted);">
+        Controle interno de processos administrativos.
+      </p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn" href="{% url 'fazendaria:exportar' 'csv' %}{{ export_query }}" title="Baixar CSV com os filtros atuais">CSV</a>
+      <a class="btn" href="{% url 'fazendaria:exportar' 'xlsx' %}{{ export_query }}" title="Baixar XLSX com os filtros atuais">XLSX</a>
+      <a class="btn btn--ghost" href="{% url 'core:relatorio_fazendaria' %}">Relatório</a>
+      <a class="btn btn--primary" href="{% url 'fazendaria:criar' %}">+ Novo processo</a>
+    </div>
+  </section>
+
+  <div class="counter-strip">
+    <span class="badge">Total: {{ counters_total }}</span>
+    {% for item in counters_list %}
+      <span class="badge
+        {% if item.value == 'concluido' %}badge--success
+        {% elif item.value == 'andamento' %}badge--info
+        {% elif item.value == 'remessa' %}badge--warning
+        {% else %}badge--danger{% endif %}">
+        {{ item.label }}: {{ item.count }}
+      </span>
+    {% endfor %}
+  </div>
+
+  <form method="get" class="filter-bar">
+    <div class="form-row">
+      <label for="{{ filtro_form.busca.id_for_label }}">Busca</label>
+      {{ filtro_form.busca }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.ano.id_for_label }}">Ano</label>
+      {{ filtro_form.ano }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.situacao.id_for_label }}">Situação</label>
+      {{ filtro_form.situacao }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.procurador.id_for_label }}">Procurador</label>
+      {{ filtro_form.procurador }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.destino.id_for_label }}">Destino</label>
+      {{ filtro_form.destino }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.assunto.id_for_label }}">Assunto</label>
+      {{ filtro_form.assunto }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.tipo_parecer.id_for_label }}">Parecer</label>
+      {{ filtro_form.tipo_parecer }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.data_inicio.id_for_label }}">Recebido a partir de</label>
+      {{ filtro_form.data_inicio }}
+    </div>
+    <div class="form-row">
+      <label for="{{ filtro_form.data_fim.id_for_label }}">Recebido até</label>
+      {{ filtro_form.data_fim }}
+    </div>
+    <div class="filter-bar__actions">
+      <button type="submit" class="btn btn--primary">Filtrar</button>
+      <a class="btn btn--ghost" href="{% url 'fazendaria:lista' %}">Limpar</a>
+    </div>
+  </form>
+
+  {% if processos %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Nº processo</th>
+            <th>Procurador</th>
+            <th>Recebimento</th>
+            <th>Assunto</th>
+            <th>Situação</th>
+            <th>Destino</th>
+            <th>Remessa</th>
+            <th>Parecer</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for processo in processos %}
+            <tr>
+              <td>
+                <a href="{% url 'fazendaria:detalhe' processo.pk %}">
+                  <strong>{{ processo.numero_processo }}</strong>
+                </a>
+                <div style="color: var(--color-fg-muted); font-size: 11px;">{{ processo.ano }}</div>
+              </td>
+              <td>{{ processo.procurador|default:"-" }}</td>
+              <td>{{ processo.data_recebimento|date:"d/m/Y"|default:"-" }}</td>
+              <td>{{ processo.assunto|default:"-" }}</td>
+              <td>
+                <span class="badge
+                  {% if processo.situacao == 'concluido' %}badge--success
+                  {% elif processo.situacao == 'andamento' %}badge--info
+                  {% elif processo.situacao == 'remessa' %}badge--warning
+                  {% else %}badge--danger{% endif %}">
+                  {{ processo.get_situacao_display }}
+                </span>
+              </td>
+              <td>{{ processo.destino|default:"-" }}</td>
+              <td>{{ processo.data_remessa|date:"d/m/Y"|default:"-" }}</td>
+              <td>
+                {% for tp in processo.tipos_parecer.all %}
+                  <span class="badge">{{ tp.codigo }}</span>
+                {% empty %}-{% endfor %}
+              </td>
+              <td>
+                <a class="btn btn--sm" href="{% url 'fazendaria:editar' processo.pk %}">Editar</a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if is_paginated %}
+      <div class="pagination">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{{ query_string }}">&laquo; anterior</a>
+        {% endif %}
+        <span class="current">
+          Página {{ page_obj.number }} de {{ paginator.num_pages }}
+        </span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{{ query_string }}">próxima &raquo;</a>
+        {% endif %}
+      </div>
+    {% endif %}
+  {% else %}
+    <div class="card empty-state">
+      <p>Nenhum processo encontrado com os filtros atuais.</p>
+      <a class="btn btn--primary" href="{% url 'fazendaria:criar' %}">Cadastrar o primeiro</a>
+    </div>
+  {% endif %}
+{% endblock %}

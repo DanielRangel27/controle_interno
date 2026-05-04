@@ -1,0 +1,91 @@
+{% extends "core/base.html" %}
+
+{% block title %}{{ page_title }} - Geral{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <a href="{% url 'geral:lista' %}" style="font-size: 12px;">&larr; voltar</a>
+      <h1>{{ page_title }}</h1>
+    </div>
+  </section>
+
+  <article class="card" style="max-width: 920px;">
+    <form method="post" class="form-stack">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <ul class="errors">
+          {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+        </ul>
+      {% endif %}
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+        <div class="form-row">
+          <label for="{{ form.numero_processo.id_for_label }}">Número do processo *</label>
+          {{ form.numero_processo }}
+          {% if form.numero_processo.errors %}<ul class="errors">{% for e in form.numero_processo.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.ano.id_for_label }}">Ano *</label>
+          {{ form.ano }}
+          {% if form.ano.errors %}<ul class="errors">{% for e in form.ano.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.data_entrada.id_for_label }}">Data de entrada</label>
+          {{ form.data_entrada }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.apensos.id_for_label }}">Apensos</label>
+          {{ form.apensos }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.data_distribuicao.id_for_label }}">Distribuição</label>
+          {{ form.data_distribuicao }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.responsavel.id_for_label }}">Responsável</label>
+          {{ form.responsavel }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.responsavel_secundario.id_for_label }}">Co-responsável</label>
+          {{ form.responsavel_secundario }}
+          {% if form.responsavel_secundario.errors %}<ul class="errors">{% for e in form.responsavel_secundario.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.assunto.id_for_label }}">Assunto</label>
+          {{ form.assunto }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.situacao.id_for_label }}">Situação</label>
+          {{ form.situacao }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.data_saida.id_for_label }}">Data da saída</label>
+          {{ form.data_saida }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.destino_saida.id_for_label }}">Destino da saída</label>
+          {{ form.destino_saida }}
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label for="{{ form.observacoes.id_for_label }}">Observações</label>
+        {{ form.observacoes }}
+      </div>
+
+      <div class="form-row">
+        <label>Tipos de parecer</label>
+        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+          {{ form.tipos_parecer }}
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <a class="btn" href="{% url 'geral:lista' %}">Cancelar</a>
+        <button type="submit" class="btn btn--primary">{{ submit_label }}</button>
+      </div>
+    </form>
+  </article>
+{% endblock %}

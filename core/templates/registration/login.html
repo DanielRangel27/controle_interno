@@ -1,0 +1,46 @@
+{% extends "core/base.html" %}
+
+{% block title %}Entrar - Controle Interno{% endblock %}
+
+{% block content %}
+  <div class="auth-screen">
+    <article class="card auth-screen__card">
+      <header class="auth-screen__brand">
+        Controle Interno
+        <small>Procuradoria do Município</small>
+      </header>
+
+      {% if form.non_field_errors %}
+        <ul class="errors">
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <form method="post" class="form-stack">
+        {% csrf_token %}
+        <div class="form-row">
+          <label for="{{ form.username.id_for_label }}">Usuário</label>
+          {{ form.username }}
+          {% if form.username.errors %}
+            <ul class="errors">
+              {% for error in form.username.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.password.id_for_label }}">Senha</label>
+          {{ form.password }}
+          {% if form.password.errors %}
+            <ul class="errors">
+              {% for error in form.password.errors %}<li>{{ error }}</li>{% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <input type="hidden" name="next" value="{{ next }}" />
+        <button type="submit" class="btn btn--primary">Entrar</button>
+      </form>
+    </article>
+  </div>
+{% endblock %}

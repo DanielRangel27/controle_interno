@@ -1,0 +1,52 @@
+{% load static %}
+<header class="app-header">
+  <div class="app-header__brand">
+    <span class="app-header__brand-mark">PGM</span>
+    <a href="{% url 'core:dashboard' %}">Controle Interno</a>
+  </div>
+
+  <nav class="app-header__nav">
+    <a href="{% url 'core:dashboard' %}"
+       class="{% if request.resolver_match.url_name == 'dashboard' %}is-active{% endif %}">
+      Início
+    </a>
+    <a href="{% url 'fazendaria:lista' %}"
+       class="{% if request.resolver_match.namespace == 'fazendaria' %}is-active{% endif %}">
+      Fazendária
+    </a>
+    <a href="{% url 'geral:lista' %}"
+       class="{% if request.resolver_match.namespace == 'geral' %}is-active{% endif %}">
+      Geral
+    </a>
+    {% if user.is_staff %}
+      <a href="{% url 'admin:index' %}">Cadastros</a>
+    {% endif %}
+  </nav>
+
+  <form method="get" action="{% url 'core:busca' %}" class="app-header__search" role="search">
+    <input
+      type="search"
+      name="q"
+      value="{{ request.GET.q|default:'' }}"
+      placeholder="Buscar processo (nº ou observação)…"
+      aria-label="Busca global"
+    />
+  </form>
+
+  <div class="app-header__user">
+    <form method="post" action="{% url 'core:toggle_theme' %}" class="theme-toggle" style="margin:0;">
+      {% csrf_token %}
+      <input type="hidden" name="theme" value="{{ theme }}" />
+      <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+      <button type="button" data-theme="light" title="Tema claro">Claro</button>
+      <button type="button" data-theme="auto" title="Seguir o sistema">Auto</button>
+      <button type="button" data-theme="dark" title="Tema escuro">Escuro</button>
+    </form>
+
+    <span title="Usuário">{{ user.get_username }}</span>
+    <form method="post" action="{% url 'logout' %}" style="margin:0;">
+      {% csrf_token %}
+      <button type="submit" class="btn btn--ghost btn--sm">Sair</button>
+    </form>
+  </div>
+</header>

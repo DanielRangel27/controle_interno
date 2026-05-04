@@ -1,0 +1,73 @@
+{% extends "core/base.html" %}
+
+{% block title %}Processo {{ processo.numero_processo }} - Fazendária{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <a href="{% url 'fazendaria:lista' %}" style="font-size: 12px;">&larr; voltar para a lista</a>
+      <h1>Processo {{ processo.numero_processo }} <small style="color: var(--color-fg-muted);">/ {{ processo.ano }}</small></h1>
+    </div>
+    <div>
+      <a class="btn btn--primary" href="{% url 'fazendaria:editar' processo.pk %}">Editar</a>
+    </div>
+  </section>
+
+  <article class="card">
+    <dl class="detail-grid">
+      <div>
+        <dt>Procurador</dt>
+        <dd>{{ processo.procurador|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Data de recebimento</dt>
+        <dd>{{ processo.data_recebimento|date:"d/m/Y"|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Assunto</dt>
+        <dd>{{ processo.assunto|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Situação</dt>
+        <dd>
+          <span class="badge
+            {% if processo.situacao == 'concluido' %}badge--success
+            {% elif processo.situacao == 'andamento' %}badge--info
+            {% elif processo.situacao == 'remessa' %}badge--warning
+            {% else %}badge--danger{% endif %}">
+            {{ processo.get_situacao_display }}
+          </span>
+        </dd>
+      </div>
+      <div>
+        <dt>Destino</dt>
+        <dd>{{ processo.destino|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Data da remessa</dt>
+        <dd>{{ processo.data_remessa|date:"d/m/Y"|default:"-" }}</dd>
+      </div>
+      <div>
+        <dt>Tipos de parecer</dt>
+        <dd>
+          {% for tp in processo.tipos_parecer.all %}
+            <span class="badge">{{ tp.codigo }} - {{ tp.nome }}</span>
+          {% empty %}-{% endfor %}
+        </dd>
+      </div>
+      <div>
+        <dt>Cadastrado por</dt>
+        <dd>{{ processo.criado_por|default:"-" }} em {{ processo.criado_em|date:"d/m/Y H:i" }}</dd>
+      </div>
+      <div>
+        <dt>Última atualização</dt>
+        <dd>{{ processo.atualizado_em|date:"d/m/Y H:i" }}</dd>
+      </div>
+    </dl>
+
+    {% if processo.observacoes %}
+      <h3>Observações</h3>
+      <p style="white-space: pre-wrap;">{{ processo.observacoes }}</p>
+    {% endif %}
+  </article>
+{% endblock %}

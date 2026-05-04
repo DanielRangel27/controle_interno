@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Project-specific
+_inspect_xlsx.py
+_inspect.log
+_2026.log
+_backup_repo/
+_smoke*.py
+_dbg*.py
+_check.py
+_probe.py
+
+# Planilhas legadas com dados administrativos (não versionar)
+*.xlsx
+*.xlsm
+*.xls

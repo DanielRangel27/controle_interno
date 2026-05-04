@@ -1,0 +1,12 @@
+{% if items %}
+  <ol class="top-list">
+    {% for item in items %}
+      <li class="top-list__item">
+        <span class="top-list__label" title="{{ item.label }}">{{ item.label }}</span>
+        <span class="top-list__count">{{ item.count }}</span>
+      </li>
+    {% endfor %}
+  </ol>
+{% else %}
+  <p style="color: var(--color-fg-muted); margin: 0;">Sem dados.</p>
+{% endif %}

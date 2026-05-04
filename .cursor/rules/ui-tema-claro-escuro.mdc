@@ -1,0 +1,57 @@
+---
+description: Tema claro e escuro em todas as páginas e interfaces
+alwaysApply: true
+---
+
+# Tema claro e escuro (todas as páginas)
+
+- Toda **nova página ou tela** deve suportar **tema claro** e **tema escuro** de forma consistente com o restante do app.
+- Centralize cores em **tokens CSS** (`--color-bg`, `--color-fg`, `--color-surface`, `--color-border`, `--color-primary`, etc.). Evite `#fff` / `#000` soltos em componentes sem equivalente no outro tema.
+
+## Como aplicar o tema
+
+1. **Automático**: respeite `prefers-color-scheme` (usuário do SO).
+2. **Manual (recomendado)**: permita alternância explícita; defina `data-theme="light"` ou `data-theme="dark"` no elemento raiz (`<html>`) e **persista** a escolha (`localStorage` em SPA; cookie/session em Django se for server-rendered).
+3. O tema manual deve **sobrescrever** o automático quando o usuário escolher; ao carregar, ler preferência salva antes de pintar (evitar “flash” de tema errado quando possível).
+
+## Acessibilidade e conteúdo
+
+- Contraste texto/fundo em ambos os temas (objetivo **WCAG AA**).
+- Gráficos, badges e estados (`success`/`error`): cores que funcionem nos dois temas ou tokens dedicados.
+- Logos/ícones: variante por tema ou ajuste controlado (filtro só se inevitável).
+
+## Django (templates + estático)
+
+- Estilos compartilhados em CSS global com variáveis; páginas estendem um **base** com `data-theme` e link ao stylesheet de tokens.
+- Não duplicar paleta inteira por template; reutilizar o mesmo conjunto de variáveis.
+
+## Exemplo mínimo de tokens
+
+```css
+:root {
+  --color-bg: #f6f7f9;
+  --color-fg: #111318;
+  --color-surface: #ffffff;
+  --color-border: #d7dbe3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #0f1115;
+    --color-fg: #e8eaef;
+    --color-surface: #171a21;
+    --color-border: #2a3140;
+  }
+}
+:root[data-theme="dark"] {
+  --color-bg: #0f1115;
+  --color-fg: #e8eaef;
+  --color-surface: #171a21;
+  --color-border: #2a3140;
+}
+:root[data-theme="light"] {
+  --color-bg: #f6f7f9;
+  --color-fg: #111318;
+  --color-surface: #ffffff;
+  --color-border: #d7dbe3;
+}
+```

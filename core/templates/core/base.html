@@ -1,0 +1,36 @@
+{% load static %}<!DOCTYPE html>
+<html lang="pt-br"{% if theme and theme != "auto" %} data-theme="{{ theme }}"{% endif %}>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Controle Interno - PGM{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'core/css/tokens.css' %}" />
+  <link rel="stylesheet" href="{% static 'core/css/app.css' %}" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="app-shell">
+    {% if user.is_authenticated %}
+      {% include "core/_partials/header.html" %}
+    {% endif %}
+
+    <main class="app-main">
+      {% if messages %}
+        <ul class="messages">
+          {% for message in messages %}
+            <li class="{{ message.tags }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="app-footer">
+      Controle Interno de Processos &middot; Procuradoria do Município
+    </footer>
+  </div>
+
+  <script src="{% static 'core/js/theme.js' %}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
