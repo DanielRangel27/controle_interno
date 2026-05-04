@@ -1,0 +1,49 @@
+{% extends "core/base.html" %}
+
+{% block title %}Criar conta - Controle Interno{% endblock %}
+
+{% block content %}
+  <div class="auth-screen">
+    <article class="card auth-screen__card">
+      <header class="auth-screen__brand">
+        Controle Interno
+        <small>Solicitação de acesso</small>
+      </header>
+
+      <p class="auth-screen__intro">
+        Preencha os dados abaixo. Sua conta ficará <strong>pendente</strong> até
+        que um administrador aprove o acesso.
+      </p>
+
+      {% if form.non_field_errors %}
+        <ul class="errors">
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <form method="post" class="form-stack" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+          <div class="form-row">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}
+              <small class="form-row__help">{{ field.help_text }}</small>
+            {% endif %}
+            {% if field.errors %}
+              <ul class="errors">
+                {% for error in field.errors %}<li>{{ error }}</li>{% endfor %}
+              </ul>
+            {% endif %}
+          </div>
+        {% endfor %}
+        <div class="form-actions">
+          <a class="btn btn--ghost" href="{% url 'login' %}">Cancelar</a>
+          <button type="submit" class="btn btn--primary">Solicitar acesso</button>
+        </div>
+      </form>
+    </article>
+  </div>
+{% endblock %}

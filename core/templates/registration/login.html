@@ -41,6 +41,12 @@
         <input type="hidden" name="next" value="{{ next }}" />
         <button type="submit" class="btn btn--primary">Entrar</button>
       </form>
+
+      {% url 'accounts:signup' as signup_url %}
+      <p class="auth-screen__alt">
+        Não tem acesso?
+        <a href="{{ signup_url|default:'/contas/cadastro/' }}">Solicitar cadastro</a>
+      </p>
     </article>
   </div>
 {% endblock %}

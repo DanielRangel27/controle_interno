@@ -1,0 +1,23 @@
+{% extends "core/base.html" %}
+
+{% block title %}Cadastro recebido - Controle Interno{% endblock %}
+
+{% block content %}
+  <div class="auth-screen">
+    <article class="card auth-screen__card">
+      <header class="auth-screen__brand">
+        Cadastro recebido
+        <small>Aguardando aprovação</small>
+      </header>
+
+      <p>
+        Sua solicitação foi registrada e está aguardando aprovação de um
+        administrador. Você receberá acesso assim que sua conta for ativada.
+      </p>
+
+      <div class="form-actions">
+        <a class="btn btn--primary" href="{% url 'login' %}">Voltar para o login</a>
+      </div>
+    </article>
+  </div>
+{% endblock %}

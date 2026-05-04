@@ -1,0 +1,99 @@
+{% extends "core/base.html" %}
+
+{% block title %}Auditoria - Controle Interno{% endblock %}
+
+{% block content %}
+  <header class="page-header">
+    <h1>Auditoria de alterações</h1>
+  </header>
+
+  <form method="get" class="filter-bar">
+    <div class="form-row">
+      <label for="filter-acao">Ação</label>
+      <select id="filter-acao" name="acao">
+        <option value="">Todas</option>
+        {% for value, label in acoes %}
+          <option value="{{ value }}" {% if value == acao_atual %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="filter-modelo">Modelo</label>
+      <select id="filter-modelo" name="modelo">
+        <option value="">Todos</option>
+        {% for ct in content_types %}
+          <option value="{{ ct.id }}" {% if modelo_atual == ct.id|stringformat:"s" %}selected{% endif %}>{{ ct.app_label }}.{{ ct.model }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="filter-q">Texto no objeto</label>
+      <input id="filter-q" type="search" name="q" value="{{ termo_atual }}" placeholder="Ex.: 547/25" />
+    </div>
+    <div class="filter-bar__actions">
+      <button class="btn btn--primary" type="submit">Filtrar</button>
+      <a class="btn btn--ghost" href="{% url 'auditoria:lista' %}">Limpar</a>
+    </div>
+  </form>
+
+  {% if logs %}
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Data/Hora</th>
+            <th>Ação</th>
+            <th>Modelo</th>
+            <th>Objeto</th>
+            <th>Usuário</th>
+            <th>Campos alterados</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+            <tr>
+              <td>{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+              <td>
+                {% if log.action == 'create' %}
+                  <span class="badge badge--success">Criação</span>
+                {% elif log.action == 'update' %}
+                  <span class="badge badge--info">Atualização</span>
+                {% elif log.action == 'delete' %}
+                  <span class="badge badge--danger">Exclusão</span>
+                {% else %}
+                  <span class="badge">{{ log.get_action_display }}</span>
+                {% endif %}
+              </td>
+              <td>{{ log.content_type.app_label }}.{{ log.content_type.model }}</td>
+              <td>{{ log.object_repr }}</td>
+              <td>{{ log.actor_username|default:"-" }}</td>
+              <td>
+                {% if log.changed_fields %}
+                  {{ log.changed_fields|join:", " }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ log.ip_address|default:"-" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if is_paginated %}
+      <nav class="pagination">
+        {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% if acao_atual %}&acao={{ acao_atual }}{% endif %}{% if modelo_atual %}&modelo={{ modelo_atual }}{% endif %}{% if termo_atual %}&q={{ termo_atual }}{% endif %}">Anterior</a>
+        {% endif %}
+        <span class="current">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% if acao_atual %}&acao={{ acao_atual }}{% endif %}{% if modelo_atual %}&modelo={{ modelo_atual }}{% endif %}{% if termo_atual %}&q={{ termo_atual }}{% endif %}">Próxima</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+  {% else %}
+    <p class="empty-state">Nenhum registro encontrado para os filtros atuais.</p>
+  {% endif %}
+{% endblock %}

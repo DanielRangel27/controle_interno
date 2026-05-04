@@ -1,4 +1,7 @@
-"""URL routes for the core app."""
+"""Rotas do app core (prefixo ``/painel/`` no projeto).
+
+Rotas públicas do app ``accounts`` ficam em ``controle_interno/urls.py`` sob ``/contas/``.
+"""
 
 from __future__ import annotations
 

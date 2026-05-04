@@ -386,6 +386,24 @@ table.data-table tbody tr:hover {
   margin-top: 4px;
 }
 
+.auth-screen__intro {
+  margin: 0 0 16px;
+  color: var(--color-fg-muted);
+  font-size: 13px;
+}
+
+.auth-screen__alt {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--color-fg-muted);
+  text-align: center;
+}
+
+.form-row__help {
+  font-size: 12px;
+  color: var(--color-fg-muted);
+}
+
 .errors {
   list-style: none;
   padding: 8px 12px;

@@ -48,13 +48,9 @@
           {{ form.responsavel }}
         </div>
         <div class="form-row">
-          <label for="{{ form.responsavel_secundario.id_for_label }}">Co-responsável</label>
-          {{ form.responsavel_secundario }}
-          {% if form.responsavel_secundario.errors %}<ul class="errors">{% for e in form.responsavel_secundario.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
-        </div>
-        <div class="form-row">
-          <label for="{{ form.assunto.id_for_label }}">Assunto</label>
-          {{ form.assunto }}
+          <label for="{{ form.assunto_nome.id_for_label }}">Assunto</label>
+          {{ form.assunto_nome }}
+          {% if form.assunto_nome.errors %}<ul class="errors">{% for e in form.assunto_nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
         </div>
         <div class="form-row">
           <label for="{{ form.situacao.id_for_label }}">Situação</label>
@@ -65,8 +61,9 @@
           {{ form.data_saida }}
         </div>
         <div class="form-row">
-          <label for="{{ form.destino_saida.id_for_label }}">Destino da saída</label>
-          {{ form.destino_saida }}
+          <label for="{{ form.destino_saida_nome.id_for_label }}">Destino da saída</label>
+          {{ form.destino_saida_nome }}
+          {% if form.destino_saida_nome.errors %}<ul class="errors">{% for e in form.destino_saida_nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
         </div>
       </div>
 

@@ -15,6 +15,8 @@ urlpatterns = [
         name="login",
     ),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path("contas/", include("accounts.urls")),
+    path("auditoria/", include(("auditoria.urls", "auditoria"), namespace="auditoria")),
     path("", RedirectView.as_view(pattern_name="core:dashboard", permanent=False)),
     path("painel/", include(("core.urls", "core"), namespace="core")),
     path("fazendaria/", include(("fazendaria.urls", "fazendaria"), namespace="fazendaria")),

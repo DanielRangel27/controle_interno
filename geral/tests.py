@@ -192,7 +192,6 @@ class ProcessoFormTests(TestCase):
         cls.rodrigo = Procurador.objects.create(nome="Rodrigo", modulo=Modulo.GERAL)
         cls.proc_faz = Procurador.objects.create(nome="Eduarda", modulo=Modulo.FAZENDARIA)
         cls.assunto_geral = Assunto.objects.create(nome="Permuta", modulo=Modulo.GERAL)
-        cls.assunto_faz = Assunto.objects.create(nome="IPTU", modulo=Modulo.FAZENDARIA)
         cls.setor = Setor.objects.create(nome="SEPRA")
 
     def test_form_filters_responsavel_by_module(self) -> None:
@@ -202,11 +201,40 @@ class ProcessoFormTests(TestCase):
         self.assertIn(self.rodrigo, choices)
         self.assertNotIn(self.proc_faz, choices)
 
-    def test_form_filters_assunto_by_module(self) -> None:
-        form = ProcessoGeralForm()
-        choices = list(form.fields["assunto"].queryset)
-        self.assertIn(self.assunto_geral, choices)
-        self.assertNotIn(self.assunto_faz, choices)
+    def test_form_accepts_free_text_and_reuses_existing_catalogs(self) -> None:
+        form = ProcessoGeralForm(
+            data={
+                "numero_processo": "4321/2026",
+                "ano": 2026,
+                "assunto_nome": "Permuta",
+                "destino_saida_nome": "SEPRA",
+                "situacao": SituacaoGeral.ANDAMENTO,
+            }
+        )
+        self.assertTrue(form.is_valid(), msg=form.errors)
+        processo = form.save()
+        assert processo.assunto is not None
+        assert processo.destino_saida is not None
+        self.assertEqual(processo.assunto.pk, self.assunto_geral.pk)
+        self.assertEqual(processo.destino_saida.pk, self.setor.pk)
+
+    def test_form_creates_catalogs_from_free_text(self) -> None:
+        form = ProcessoGeralForm(
+            data={
+                "numero_processo": "7777/2026",
+                "ano": 2026,
+                "assunto_nome": "Novo Assunto Livre",
+                "destino_saida_nome": "Novo Destino Livre",
+                "situacao": SituacaoGeral.ANDAMENTO,
+            }
+        )
+        self.assertTrue(form.is_valid(), msg=form.errors)
+        processo = form.save()
+        assert processo.assunto is not None
+        assert processo.destino_saida is not None
+        self.assertEqual(processo.assunto.nome, "Novo Assunto Livre")
+        self.assertEqual(processo.assunto.modulo, Modulo.GERAL)
+        self.assertEqual(processo.destino_saida.nome, "Novo Destino Livre")
 
     def test_form_rejects_same_responsavel_twice(self) -> None:
         form = ProcessoGeralForm(

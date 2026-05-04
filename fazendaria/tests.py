@@ -197,7 +197,6 @@ class ProcessoFormTests(TestCase):
             nome="Antigo", modulo=Modulo.FAZENDARIA, ativo=False
         )
         cls.assunto_faz = Assunto.objects.create(nome="IPTU", modulo=Modulo.FAZENDARIA)
-        cls.assunto_geral = Assunto.objects.create(nome="Promoção", modulo=Modulo.GERAL)
         cls.setor = Setor.objects.create(nome="SEPRA")
 
     def test_process_form_filters_procurador_by_module(self) -> None:
@@ -207,11 +206,40 @@ class ProcessoFormTests(TestCase):
         self.assertNotIn(self.proc_geral, choices)
         self.assertNotIn(self.proc_inativo, choices)
 
-    def test_process_form_filters_assunto_by_module(self) -> None:
-        form = ProcessoFazendariaForm()
-        choices = list(form.fields["assunto"].queryset)
-        self.assertIn(self.assunto_faz, choices)
-        self.assertNotIn(self.assunto_geral, choices)
+    def test_process_form_accepts_free_text_and_reuses_existing_catalogs(self) -> None:
+        form = ProcessoFazendariaForm(
+            data={
+                "numero_processo": "5555/26",
+                "ano": 2026,
+                "assunto_nome": "IPTU",
+                "destino_nome": "SEPRA",
+                "situacao": SituacaoFazendaria.ANDAMENTO,
+            }
+        )
+        self.assertTrue(form.is_valid(), msg=form.errors)
+        processo = form.save()
+        assert processo.assunto is not None
+        assert processo.destino is not None
+        self.assertEqual(processo.assunto.pk, self.assunto_faz.pk)
+        self.assertEqual(processo.destino.pk, self.setor.pk)
+
+    def test_process_form_creates_catalogs_from_free_text(self) -> None:
+        form = ProcessoFazendariaForm(
+            data={
+                "numero_processo": "6666/26",
+                "ano": 2026,
+                "assunto_nome": "Novo Assunto Faz",
+                "destino_nome": "Novo Destino Faz",
+                "situacao": SituacaoFazendaria.ANDAMENTO,
+            }
+        )
+        self.assertTrue(form.is_valid(), msg=form.errors)
+        processo = form.save()
+        assert processo.assunto is not None
+        assert processo.destino is not None
+        self.assertEqual(processo.assunto.nome, "Novo Assunto Faz")
+        self.assertEqual(processo.assunto.modulo, Modulo.FAZENDARIA)
+        self.assertEqual(processo.destino.nome, "Novo Destino Faz")
 
     def test_process_form_valid_with_minimum_fields(self) -> None:
         form = ProcessoFazendariaForm(

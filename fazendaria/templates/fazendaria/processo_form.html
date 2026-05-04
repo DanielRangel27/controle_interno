@@ -40,16 +40,18 @@
           {{ form.data_recebimento }}
         </div>
         <div class="form-row">
-          <label for="{{ form.assunto.id_for_label }}">Assunto</label>
-          {{ form.assunto }}
+          <label for="{{ form.assunto_nome.id_for_label }}">Assunto</label>
+          {{ form.assunto_nome }}
+          {% if form.assunto_nome.errors %}<ul class="errors">{% for e in form.assunto_nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
         </div>
         <div class="form-row">
           <label for="{{ form.situacao.id_for_label }}">Situação</label>
           {{ form.situacao }}
         </div>
         <div class="form-row">
-          <label for="{{ form.destino.id_for_label }}">Destino</label>
-          {{ form.destino }}
+          <label for="{{ form.destino_nome.id_for_label }}">Destino</label>
+          {{ form.destino_nome }}
+          {% if form.destino_nome.errors %}<ul class="errors">{% for e in form.destino_nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
         </div>
         <div class="form-row">
           <label for="{{ form.data_remessa.id_for_label }}">Data da remessa</label>

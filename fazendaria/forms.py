@@ -15,6 +15,9 @@ class ProcessoFazendariaForm(forms.ModelForm):
     Limits the dropdowns to active records assigned to fazendaria/ambos.
     """
 
+    assunto_nome = forms.CharField(label="Assunto", required=False, max_length=200)
+    destino_nome = forms.CharField(label="Destino", required=False, max_length=120)
+
     class Meta:
         model = ProcessoFazendaria
         fields = [
@@ -41,17 +44,52 @@ class ProcessoFazendariaForm(forms.ModelForm):
         self.fields["procurador"].queryset = Procurador.objects.filter(
             ativo=True, modulo__in=[Modulo.FAZENDARIA, Modulo.AMBOS]
         )
-        self.fields["assunto"].queryset = Assunto.objects.filter(
-            ativo=True, modulo__in=[Modulo.FAZENDARIA, Modulo.AMBOS]
-        )
-        self.fields["destino"].queryset = Setor.objects.filter(ativo=True)
         self.fields["tipos_parecer"].queryset = TipoParecer.objects.filter(ativo=True)
+        if self.instance.pk:
+            if self.instance.assunto:
+                self.initial["assunto_nome"] = self.instance.assunto.nome
+            if self.instance.destino:
+                self.initial["destino_nome"] = self.instance.destino.nome
         for name, field in self.fields.items():
             widget = field.widget
             if isinstance(widget, forms.CheckboxSelectMultiple):
                 continue
             existing = widget.attrs.get("class", "")
             widget.attrs["class"] = (existing + " form-control").strip()
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        assunto_nome = (cleaned.get("assunto_nome") or "").strip()
+        destino_nome = (cleaned.get("destino_nome") or "").strip()
+        cleaned["assunto_nome"] = assunto_nome
+        cleaned["destino_nome"] = destino_nome
+        cleaned["assunto"] = self._resolve_assunto(assunto_nome)
+        cleaned["destino"] = self._resolve_destino(destino_nome)
+        return cleaned
+
+    def _resolve_assunto(self, nome: str) -> Assunto | None:
+        if not nome:
+            return None
+        existing = Assunto.objects.filter(
+            nome__iexact=nome, modulo=Modulo.FAZENDARIA
+        ).first()
+        if existing:
+            return existing
+        existing_ambos = Assunto.objects.filter(
+            nome__iexact=nome,
+            modulo=Modulo.AMBOS,
+        ).first()
+        if existing_ambos:
+            return existing_ambos
+        return Assunto.objects.create(nome=nome, modulo=Modulo.FAZENDARIA, ativo=True)
+
+    def _resolve_destino(self, nome: str) -> Setor | None:
+        if not nome:
+            return None
+        existing = Setor.objects.filter(nome__iexact=nome).first()
+        if existing:
+            return existing
+        return Setor.objects.create(nome=nome, ativo=True)
 
 
 class FiltroProcessoForm(forms.Form):

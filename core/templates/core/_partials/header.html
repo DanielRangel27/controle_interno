@@ -19,6 +19,10 @@
       Geral
     </a>
     {% if user.is_staff %}
+      <a href="{% url 'auditoria:lista' %}"
+         class="{% if request.resolver_match.namespace == 'auditoria' %}is-active{% endif %}">
+        Auditoria
+      </a>
       <a href="{% url 'admin:index' %}">Cadastros</a>
     {% endif %}
   </nav>

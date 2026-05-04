@@ -51,6 +51,8 @@ INSTALLED_APPS = [
     "core",
     "geral",
     "fazendaria",
+    "accounts",
+    "auditoria",
 ]
 
 MIDDLEWARE = [
@@ -61,6 +63,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "auditoria.middleware.CurrentRequestMiddleware",
 ]
 
 ROOT_URLCONF = "controle_interno.urls"
