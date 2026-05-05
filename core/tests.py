@@ -388,6 +388,81 @@ class BackupGitCommandTests(TestCase):
         )
         self.assertFalse(second.pushed)
 
+    def test_offline_keeps_local_commit_and_marks_pending(self) -> None:
+        from .management.commands import backup_git as backup_module
+
+        repo_dir = self.tmp_path / "offline_run"
+        # First run online so the local clone exists.
+        first, config = self._run_with_env(repo_dir)
+        self.assertTrue(first.pushed)
+
+        # Simulate offline: redirect the local repo's origin to a host that
+        # will fail DNS resolution. ``git fetch``/``push`` will then complain
+        # with messages matching ``is_network_error``.
+        env = _git_env()
+        subprocess.run(
+            ["git", "remote", "set-url", "origin",
+             "https://invalid.invalid-host.example/repo.git"],
+            cwd=str(repo_dir),
+            check=True,
+            capture_output=True,
+            env=env,
+        )
+
+        # Touch the live SQLite file so there is something new to commit.
+        if config.db_path.exists():
+            mtime = config.db_path.stat().st_mtime + 1
+            os.utime(config.db_path, (mtime, mtime))
+
+        # Even when "offline", the backup must not raise. It must produce a
+        # local commit and report ``network_offline=True``.
+        original_run = subprocess.run
+
+        def run_with_env(*args, **kwargs):
+            env = kwargs.pop("env", None) or os.environ.copy()
+            env.update(_git_env())
+            return original_run(*args, env=env, **kwargs)
+
+        with patch.object(backup_module.subprocess, "run", side_effect=run_with_env):
+            result = backup_module.execute_backup(config)
+
+        self.assertTrue(result.network_offline)
+        self.assertFalse(result.pushed)
+
+
+class IsNetworkErrorTests(SimpleTestCase):
+    def test_detects_dns_failure(self) -> None:
+        from core.management.commands.backup_git import is_network_error
+
+        self.assertTrue(
+            is_network_error("fatal: unable to access 'https://github.com/foo'")
+        )
+        self.assertTrue(is_network_error("Could not resolve host: github.com"))
+        self.assertTrue(is_network_error("Failed to connect to github.com port 443"))
+
+    def test_ignores_unrelated_messages(self) -> None:
+        from core.management.commands.backup_git import is_network_error
+
+        self.assertFalse(is_network_error("permission denied (publickey)"))
+        self.assertFalse(is_network_error("merge conflict in foo.txt"))
+
+
+def _make_backup_result(**overrides):
+    """Build a fake ``BackupResult`` for tests that mock ``execute_backup``."""
+
+    from core.management.commands.backup_git import BackupResult
+
+    defaults = dict(
+        dump_path=Path("/tmp/dump.json"),
+        sqlite_path=None,
+        committed=True,
+        pushed=True,
+        network_offline=False,
+        pending_commits=0,
+    )
+    defaults.update(overrides)
+    return BackupResult(**defaults)
+
 
 @override_settings(
     BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True,
@@ -399,14 +474,108 @@ class ProcessAutoBackupSignalTests(TestCase):
     def test_runs_backup_on_process_create_update_delete(self) -> None:
         from geral.models import ProcessoGeral
 
-        with patch("core.process_backup_signals.call_command") as mocked_call:
-            process = ProcessoGeral.objects.create(numero_processo="9001/26", ano=2026)
-            process.observacoes = "Atualizado por teste"
-            process.save(update_fields=["observacoes"])
-            process.delete()
+        with patch(
+            "core.process_backup_signals.execute_backup",
+            return_value=_make_backup_result(),
+        ) as mocked_run:
+            with patch(
+                "core.process_backup_signals.BackupConfig.from_settings",
+                return_value=object(),
+            ):
+                process = ProcessoGeral.objects.create(numero_processo="9001/26", ano=2026)
+                process.observacoes = "Atualizado por teste"
+                process.save(update_fields=["observacoes"])
+                process.delete()
 
-        self.assertEqual(mocked_call.call_count, 3)
-        mocked_call.assert_called_with("backup_git")
+        self.assertEqual(mocked_run.call_count, 3)
+
+    def test_status_is_ok_after_successful_backup(self) -> None:
+        from core.process_backup_signals import get_last_backup_status, reset_status
+        from geral.models import ProcessoGeral
+
+        reset_status()
+        with patch(
+            "core.process_backup_signals.execute_backup",
+            return_value=_make_backup_result(),
+        ):
+            with patch(
+                "core.process_backup_signals.BackupConfig.from_settings",
+                return_value=object(),
+            ):
+                ProcessoGeral.objects.create(numero_processo="9100/26", ano=2026)
+
+        status = get_last_backup_status()
+        self.assertIsNotNone(status)
+        self.assertEqual(status.outcome, "ok")
+        reset_status()
+
+    def test_status_is_offline_when_network_unreachable(self) -> None:
+        from core.process_backup_signals import get_last_backup_status, reset_status
+        from geral.models import ProcessoGeral
+
+        reset_status()
+        with patch(
+            "core.process_backup_signals.execute_backup",
+            return_value=_make_backup_result(
+                network_offline=True, pushed=False, pending_commits=2
+            ),
+        ):
+            with patch(
+                "core.process_backup_signals.BackupConfig.from_settings",
+                return_value=object(),
+            ):
+                ProcessoGeral.objects.create(numero_processo="9101/26", ano=2026)
+
+        status = get_last_backup_status()
+        self.assertIsNotNone(status)
+        self.assertEqual(status.outcome, "offline")
+        self.assertEqual(status.pending_commits, 2)
+        reset_status()
+
+    def test_status_is_error_when_backup_raises(self) -> None:
+        from core.process_backup_signals import get_last_backup_status, reset_status
+        from geral.models import ProcessoGeral
+
+        reset_status()
+        with patch(
+            "core.process_backup_signals.execute_backup",
+            side_effect=RuntimeError("boom"),
+        ):
+            with patch(
+                "core.process_backup_signals.BackupConfig.from_settings",
+                return_value=object(),
+            ):
+                ProcessoGeral.objects.create(numero_processo="9102/26", ano=2026)
+
+        status = get_last_backup_status()
+        self.assertIsNotNone(status)
+        self.assertEqual(status.outcome, "error")
+        self.assertIn("boom", status.error_message or "")
+        reset_status()
+
+    def test_offline_does_not_update_cooldown_state_file(self) -> None:
+        from geral.models import ProcessoGeral
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            state_file = Path(tmp_dir) / "last_run.txt"
+            with override_settings(
+                BACKUP_GIT_AUTO_ON_PROCESS_CHANGE=True,
+                BACKUP_GIT_AUTO_COOLDOWN_SECONDS=120,
+                BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE=state_file,
+            ):
+                with patch(
+                    "core.process_backup_signals.execute_backup",
+                    return_value=_make_backup_result(
+                        network_offline=True, pushed=False
+                    ),
+                ):
+                    with patch(
+                        "core.process_backup_signals.BackupConfig.from_settings",
+                        return_value=object(),
+                    ):
+                        ProcessoGeral.objects.create(numero_processo="9103/26", ano=2026)
+
+            self.assertFalse(state_file.exists())
 
     def test_respects_cooldown_window(self) -> None:
         from geral.models import ProcessoGeral
@@ -419,10 +588,12 @@ class ProcessAutoBackupSignalTests(TestCase):
                 BACKUP_GIT_AUTO_COOLDOWN_SECONDS=120,
                 BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE=state_file,
             ):
-                with patch("core.process_backup_signals.call_command") as mocked_call:
+                with patch(
+                    "core.process_backup_signals.execute_backup"
+                ) as mocked_run:
                     ProcessoGeral.objects.create(numero_processo="9003/26", ano=2026)
 
-        mocked_call.assert_not_called()
+        mocked_run.assert_not_called()
 
     def test_updates_cooldown_state_file_after_success(self) -> None:
         from geral.models import ProcessoGeral
@@ -435,13 +606,20 @@ class ProcessAutoBackupSignalTests(TestCase):
                 BACKUP_GIT_AUTO_COOLDOWN_SECONDS=120,
                 BACKUP_GIT_AUTO_COOLDOWN_STATE_FILE=state_file,
             ):
-                with patch("core.process_backup_signals.call_command") as mocked_call:
+                with patch(
+                    "core.process_backup_signals.execute_backup",
+                    return_value=_make_backup_result(),
+                ) as mocked_run:
                     with patch(
-                        "core.process_backup_signals.time.time",
-                        side_effect=[1000.0, 1000.0],
+                        "core.process_backup_signals.BackupConfig.from_settings",
+                        return_value=object(),
                     ):
-                        ProcessoGeral.objects.create(numero_processo="9004/26", ano=2026)
-                mocked_call.assert_called_once_with("backup_git")
+                        with patch(
+                            "core.process_backup_signals.time.time",
+                            side_effect=[1000.0, 1000.0],
+                        ):
+                            ProcessoGeral.objects.create(numero_processo="9004/26", ano=2026)
+                mocked_run.assert_called_once()
                 self.assertEqual(state_file.read_text(encoding="utf-8").strip(), "1000.0")
 
 
@@ -450,10 +628,101 @@ class ProcessAutoBackupDisabledTests(TestCase):
     def test_does_not_run_backup_when_flag_is_disabled(self) -> None:
         from geral.models import ProcessoGeral
 
-        with patch("core.process_backup_signals.call_command") as mocked_call:
+        with patch(
+            "core.process_backup_signals.execute_backup"
+        ) as mocked_run:
             ProcessoGeral.objects.create(numero_processo="9002/26", ano=2026)
 
-        mocked_call.assert_not_called()
+        mocked_run.assert_not_called()
+
+
+class BackupStatusFlashMiddlewareTests(SimpleTestCase):
+    """Verify that the middleware turns thread-local status into flash messages."""
+
+    def _build_middleware(self):
+        from core.middleware import BackupStatusFlashMiddleware
+        from django.http import HttpResponse
+
+        def get_response(_request):
+            return HttpResponse("ok")
+
+        return BackupStatusFlashMiddleware(get_response)
+
+    def _build_request(self, *, authenticated: bool = True):
+        from django.contrib.messages.storage.fallback import FallbackStorage
+        from django.test import RequestFactory
+
+        request = RequestFactory().post("/geral/novo/")
+        request.session = {}
+        request._messages = FallbackStorage(request)
+
+        class _User:
+            def __init__(self, authed: bool) -> None:
+                self.is_authenticated = authed
+
+        request.user = _User(authenticated)
+        return request
+
+    def test_offline_status_adds_warning_message(self) -> None:
+        from django.contrib import messages as message_module
+
+        from core.process_backup_signals import BackupStatus, _set_status
+
+        middleware = self._build_middleware()
+        request = self._build_request()
+
+        def get_response(_req):
+            _set_status(BackupStatus(outcome="offline", pending_commits=3))
+            from django.http import HttpResponse
+
+            return HttpResponse("ok")
+
+        middleware.get_response = get_response
+        middleware(request)
+
+        stored = list(request._messages)
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(stored[0].level, message_module.WARNING)
+        self.assertIn("sem conexão", stored[0].message)
+        self.assertIn("3 commit(s) pendente(s)", stored[0].message)
+
+    def test_error_status_adds_error_message(self) -> None:
+        from django.contrib import messages as message_module
+
+        from core.process_backup_signals import BackupStatus, _set_status
+
+        middleware = self._build_middleware()
+        request = self._build_request()
+
+        def get_response(_req):
+            _set_status(BackupStatus(outcome="error", error_message="boom"))
+            from django.http import HttpResponse
+
+            return HttpResponse("ok")
+
+        middleware.get_response = get_response
+        middleware(request)
+
+        stored = list(request._messages)
+        self.assertEqual(len(stored), 1)
+        self.assertEqual(stored[0].level, message_module.ERROR)
+
+    def test_anonymous_user_does_not_get_flash(self) -> None:
+        from core.process_backup_signals import BackupStatus, _set_status
+
+        middleware = self._build_middleware()
+        request = self._build_request(authenticated=False)
+
+        def get_response(_req):
+            _set_status(BackupStatus(outcome="offline"))
+            from django.http import HttpResponse
+
+            return HttpResponse("ok")
+
+        middleware.get_response = get_response
+        middleware(request)
+
+        self.assertEqual(list(request._messages), [])
 
 
 class CoreServiceReportTests(TestCase):

@@ -23,6 +23,7 @@ class SituacaoGeral(models.TextChoices):
     CADERNO = "caderno", "Entregue no caderno"
     ANALISE = "analise", "Em análise"
     CONCLUIDO = "concluido", "Concluído"
+    DISTRIBUICAO = "distribuicao", "Distribuição"
 
 
 class ProcessoGeral(TimestampedModel):

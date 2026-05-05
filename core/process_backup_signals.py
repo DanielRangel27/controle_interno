@@ -1,21 +1,26 @@
 """Automatic backup hooks for process model changes.
 
 When enabled via ``BACKUP_GIT_AUTO_ON_PROCESS_CHANGE``, any create/update/delete
-on ``ProcessoGeral`` or ``ProcessoFazendaria`` triggers ``manage.py backup_git``.
+on ``ProcessoGeral`` or ``ProcessoFazendaria`` triggers a Git backup. The status
+of the latest run is exposed via a thread-local so middleware can surface
+flash messages to the user when the backup ran offline or failed.
 """
 
 from __future__ import annotations
 
 import logging
+import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from django.apps import apps
 from django.conf import settings
-from django.core.management import call_command
 from django.db.models import Model
 from django.db.models.signals import post_delete, post_save
+
+from core.management.commands.backup_git import BackupConfig, execute_backup
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +28,35 @@ PROCESS_MODELS: tuple[str, ...] = (
     "geral.ProcessoGeral",
     "fazendaria.ProcessoFazendaria",
 )
+
+
+BackupOutcome = Literal["ok", "skipped", "offline", "error"]
+
+
+@dataclass(frozen=True)
+class BackupStatus:
+    outcome: BackupOutcome
+    pending_commits: int = 0
+    error_message: str | None = None
+
+
+_state = threading.local()
+
+
+def reset_status() -> None:
+    """Clear the per-request status (called by the middleware on each request)."""
+
+    _state.status = None
+
+
+def get_last_backup_status() -> BackupStatus | None:
+    """Return the most recent backup status set during the current request."""
+
+    return getattr(_state, "status", None)
+
+
+def _set_status(status: BackupStatus) -> None:
+    _state.status = status
 
 
 def _auto_backup_enabled() -> bool:
@@ -79,12 +113,30 @@ def _run_backup(*, reason: str) -> None:
         return
     if _should_skip_by_cooldown():
         logger.info("auto backup skipped by cooldown", extra={"reason": reason})
+        _set_status(BackupStatus(outcome="skipped"))
         return
+
     try:
-        call_command("backup_git")
-        _update_last_run_timestamp(_cooldown_state_file())
-    except Exception:
+        config = BackupConfig.from_settings()
+        result = execute_backup(config)
+    except Exception as exc:
         logger.exception("auto backup failed", extra={"reason": reason})
+        _set_status(BackupStatus(outcome="error", error_message=str(exc)))
+        return
+
+    if result.network_offline:
+        logger.warning(
+            "auto backup offline",
+            extra={"reason": reason, "pending_commits": result.pending_commits},
+        )
+        # Keep retrying on next change: do NOT update the cooldown timestamp.
+        _set_status(
+            BackupStatus(outcome="offline", pending_commits=result.pending_commits)
+        )
+        return
+
+    _update_last_run_timestamp(_cooldown_state_file())
+    _set_status(BackupStatus(outcome="ok"))
 
 
 def _on_process_saved(
