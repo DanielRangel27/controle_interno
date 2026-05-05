@@ -135,7 +135,9 @@ python manage.py shell -c "from django.contrib.auth.models import User; User.obj
 O comando `backup_git`:
 
 1. Clona (1ª vez) ou puxa atualizações do repositório configurado.
-2. Gera um dump JSON do banco.
+2. Gera um dump JSON do banco em
+   `procuradoria/backups/db-YYYY-MM-DD-HHMMSS.json` (um arquivo por execução,
+   carimbado com data e hora).
 3. Copia o arquivo `db.sqlite3` para o repo de backup.
 4. Faz commit + push se houver mudanças (não cria commit vazio).
 
@@ -182,6 +184,73 @@ Os logs do `.bat` aparecem no histórico da tarefa do Agendador.
 
 ---
 
+## Restaurar backup
+
+> **ATENÇÃO**: o restore **substitui o banco atual**. Pare o servidor
+> (`runserver.bat`) antes de executar e avise os usuários da rede interna.
+
+O script `scripts\restore.bat` é o ponto único de restauração. Ele é
+**interativo**, pede confirmação explícita (digitar `CONFIRMAR`) e sempre
+salva uma cópia de segurança do `db.sqlite3` atual em
+`backups_local\db-pre-restore-<timestamp>.sqlite3` antes de qualquer
+mudança — assim é possível reverter caso algo dê errado.
+
+### Modos suportados
+
+| Modo | O que faz | Quando usar |
+| --- | --- | --- |
+| **SQLite** | Copia o `db.sqlite3` do repositório de backup por cima do banco atual. | Restore rápido, fiel ao último estado capturado. |
+| **JSON** | Roda `migrate` → `flush` → `loaddata <dump>`. | Útil quando o schema mudou ou quando quiser carregar um dump específico (por data e horário). |
+
+### Pré-requisitos
+
+- O `_backup_repo` precisa existir localmente. Se ainda não foi clonado,
+  rode `scripts\backup.bat` ao menos uma vez antes do restore.
+- `python` e `git` precisam estar no `PATH`.
+- Pare o servidor (`Ctrl+C` no terminal do `runserver.bat` ou finalizar a
+  tarefa correspondente).
+
+### Como rodar
+
+```powershell
+.\scripts\restore.bat
+```
+
+O script irá:
+
+1. Atualizar o `_backup_repo` (`git fetch` + `git pull --ff-only`).
+2. Pedir o **modo** (1 = SQLite, 2 = JSON).
+3. Listar os arquivos disponíveis e pedir para escolher o **mais recente**
+   ou **informar nome/caminho** específico.
+4. Mostrar um resumo da operação e aguardar `CONFIRMAR`.
+5. Criar o snapshot de segurança do banco atual.
+6. Executar o restore conforme o modo escolhido.
+7. Imprimir o caminho do snapshot e os próximos passos.
+
+### Como reverter um restore
+
+Se o sistema apresentar problemas após o restore:
+
+1. Pare o servidor.
+2. Copie o snapshot de volta sobre o banco atual:
+
+   ```powershell
+   copy /Y backups_local\db-pre-restore-<timestamp>.sqlite3 db.sqlite3
+   ```
+
+3. Reinicie o servidor com `scripts\runserver.bat`.
+
+### Checklist pós-restore
+
+- [ ] Servidor reiniciado (`scripts\runserver.bat`).
+- [ ] Login OK com um usuário existente (lembre-se: o `flush` do modo
+      JSON apaga e recria todos os usuários conforme o dump).
+- [ ] Listagens dos módulos Fazendária e Geral abrem com dados.
+- [ ] Dashboard exibe os contadores corretos.
+- [ ] Snapshot pré-restore preservado em `backups_local\` por alguns dias.
+
+---
+
 ## Estrutura do projeto
 
 ```
@@ -193,6 +262,7 @@ controle_interno/
 ├── geral/              # módulo Geral (idem)
 ├── scripts/
 │   ├── backup.bat      # script para Agendador de Tarefas
+│   ├── restore.bat     # restauracao interativa (SQLite ou JSON)
 │   └── runserver.bat   # script para servir via waitress
 ├── requirements.txt
 ├── .env.example

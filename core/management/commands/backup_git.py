@@ -8,8 +8,8 @@ What the command does:
 
 1. Clones the configured remote (``BACKUP_GIT_REMOTE``) into ``BACKUP_GIT_DIR``
    on the first run, or runs ``git pull`` on subsequent runs.
-2. Writes ``backups/db-YYYY-MM-DD.json`` with ``manage.py dumpdata`` and replaces
-   ``db.sqlite3`` with a binary copy of the live database.
+2. Writes ``backups/db-YYYY-MM-DD-HHMMSS.json`` with ``manage.py dumpdata`` and
+   replaces ``db.sqlite3`` with a binary copy of the live database.
 3. If nothing changed since the last run, exits cleanly without creating an
    empty commit. Otherwise commits and pushes to the configured branch.
 
@@ -178,7 +178,7 @@ def write_dump(config: BackupConfig, timestamp: datetime) -> Path:
 
     backups_dir = config.repo_dir / config.target_subdir / "backups"
     backups_dir.mkdir(parents=True, exist_ok=True)
-    target = backups_dir / f"db-{timestamp:%Y-%m-%d}.json"
+    target = backups_dir / f"db-{timestamp:%Y-%m-%d-%H%M%S}.json"
     with open(target, "w", encoding="utf-8") as fh:
         call_command(
             "dumpdata",

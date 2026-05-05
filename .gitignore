@@ -12,6 +12,9 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# Snapshots locais criados antes de restaurar backup (scripts/restore.bat)
+backups_local/
+
 # IDE
 .vscode/
 .idea/
