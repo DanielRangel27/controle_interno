@@ -357,6 +357,11 @@ table.data-table tbody tr:hover {
   color: var(--color-danger);
 }
 
+.badge--purple {
+  background: var(--color-purple-bg);
+  color: var(--color-purple);
+}
+
 /* Auth screen */
 .auth-screen {
   min-height: 100vh;

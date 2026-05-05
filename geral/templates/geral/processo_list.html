@@ -22,16 +22,20 @@
     <span class="badge">Total: {{ counters_total }}</span>
     {% for item in counters_list %}
       <span class="badge
-        {% if item.value == 'entregue' or item.value == 'concluido' %}badge--success
+        {% if item.value == 'concluido' %}badge--yellow
         {% elif item.value == 'andamento' %}badge--info
         {% elif item.value == 'analise' %}badge--warning
+        {% elif item.value == 'distribuicao' %}badge--purple
+        {% elif item.value == 'arquivado' %}badge--gray
+        {% elif item.value == 'entregue' %}badge--success
+        {% elif item.value == 'caderno' %}badge--purple
         {% else %}badge--danger{% endif %}">
         {{ item.label }}: {{ item.count }}
       </span>
     {% endfor %}
   </div>
 
-  <form method="get" class="filter-bar">
+  <form method="get" class="filter-bar">    
     <div class="form-row">
       <label for="{{ filtro_form.busca.id_for_label }}">Busca</label>
       {{ filtro_form.busca }}
@@ -112,9 +116,13 @@
               <td>{{ processo.assunto|default:"-" }}</td>
               <td>
                 <span class="badge
-                  {% if processo.situacao == 'entregue' or processo.situacao == 'concluido' %}badge--success
+                  {% if processo.situacao == 'entregue' %}badge--success
                   {% elif processo.situacao == 'andamento' %}badge--info
                   {% elif processo.situacao == 'analise' %}badge--warning
+                  {% elif processo.situacao == 'concluido' %}badge--yellow
+                  {% elif processo.situacao == 'caderno' %}badge--purple
+                  {% elif processo.situacao == 'distribuicao' %}badge--light-red
+                  {% elif processo.situacao == 'arquivado' %}badge--gray
                   {% else %}badge--danger{% endif %}">
                   {{ processo.get_situacao_display }}
                 </span>

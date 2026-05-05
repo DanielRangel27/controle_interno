@@ -12,6 +12,10 @@ cd /d "%PROJECT_DIR%" || (
     exit /b 1
 )
 
+REM Libera qualquer host na rede interna para evitar cadastro de IP individual.
+REM OBS: para ambiente exposto fora da rede local, restrinja no .env.
+set "DJANGO_ALLOWED_HOSTS=*"
+
 echo Servindo o sistema em http://%COMPUTERNAME%:8088/  (Ctrl+C para parar)
 python -m waitress --listen=%BIND% controle_interno.wsgi:application
 

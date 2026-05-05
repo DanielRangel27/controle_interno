@@ -25,7 +25,9 @@
         {% if item.value == 'concluido' %}badge--success
         {% elif item.value == 'andamento' %}badge--info
         {% elif item.value == 'remessa' %}badge--warning
-        {% else %}badge--danger{% endif %}">
+        {% elif item.value == 'distribuicao' %}badge--purple
+        {% elif item.value == 'no_armario' %}badge--danger
+        {% endif %}">
         {{ item.label }}: {{ item.count }}
       </span>
     {% endfor %}
@@ -104,10 +106,15 @@
               <td>{{ processo.assunto|default:"-" }}</td>
               <td>
                 <span class="badge
-                  {% if processo.situacao == 'concluido' %}badge--success
+                  {% if processo.situacao == 'concluido' %}badge--yellow
                   {% elif processo.situacao == 'andamento' %}badge--info
                   {% elif processo.situacao == 'remessa' %}badge--warning
-                  {% else %}badge--danger{% endif %}">
+                  {% elif processo.situacao == 'distribuicao' %}badge--purple
+                  {% elif processo.situacao == 'no_armario' %}badge--danger
+                  {% elif processo.situacao == 'arquivado' %}badge--gray
+                  {% elif processo.situacao == 'entregue' %}badge--success
+                  {% else %}badge--danger
+                  {% endif %}">
                   {{ processo.get_situacao_display }}
                 </span>
               </td>

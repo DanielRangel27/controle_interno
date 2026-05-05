@@ -24,6 +24,7 @@ class SituacaoGeral(models.TextChoices):
     ANALISE = "analise", "Em análise"
     CONCLUIDO = "concluido", "Concluído"
     DISTRIBUICAO = "distribuicao", "Distribuição"
+    ARQUIVADO = "arquivado", "Arquivado"
 
 
 class ProcessoGeral(TimestampedModel):

@@ -28,6 +28,8 @@ class SituacaoFazendaria(models.TextChoices):
     REMESSA = "remessa", "Remessa"
     NO_ARMARIO = "no_armario", "No armário"
     DISTRIBUICAO = "distribuicao", "Distribuição"
+    ARQUIVADO = "arquivado", "Arquivado"
+    ENTREGUE = "entregue", "Entregue"
 
 
 class ProcessoFazendaria(TimestampedModel):
