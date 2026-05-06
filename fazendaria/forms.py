@@ -33,8 +33,8 @@ class ProcessoFazendariaForm(forms.ModelForm):
             "tipos_parecer",
         ]
         widgets = {
-            "data_recebimento": forms.DateInput(attrs={"type": "date"}),
-            "data_remessa": forms.DateInput(attrs={"type": "date"}),
+            "data_recebimento": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+            "data_remessa": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "observacoes": forms.Textarea(attrs={"rows": 3}),
             "tipos_parecer": forms.CheckboxSelectMultiple,
         }
@@ -133,12 +133,12 @@ class FiltroProcessoForm(forms.Form):
     data_inicio = forms.DateField(
         label="Recebido a partir de",
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
     )
     data_fim = forms.DateField(
         label="Recebido até",
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
     )
 
     def __init__(self, *args, **kwargs) -> None:

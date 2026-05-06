@@ -30,6 +30,7 @@ class SituacaoFazendaria(models.TextChoices):
     DISTRIBUICAO = "distribuicao", "Distribuição"
     ARQUIVADO = "arquivado", "Arquivado"
     ENTREGUE = "entregue", "Entregue"
+    DIARIO_OFICIAL = "diario_oficial", "Diário Oficial"
 
 
 class ProcessoFazendaria(TimestampedModel):

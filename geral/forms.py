@@ -35,9 +35,9 @@ class ProcessoGeralForm(forms.ModelForm):
             "tipos_parecer",
         ]
         widgets = {
-            "data_entrada": forms.DateInput(attrs={"type": "date"}),
-            "data_distribuicao": forms.DateInput(attrs={"type": "date"}),
-            "data_saida": forms.DateInput(attrs={"type": "date"}),
+            "data_entrada": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+            "data_distribuicao": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
+            "data_saida": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "observacoes": forms.Textarea(attrs={"rows": 3}),
             "tipos_parecer": forms.CheckboxSelectMultiple,
             "apensos": forms.TextInput(
@@ -144,12 +144,12 @@ class FiltroProcessoForm(forms.Form):
     data_inicio = forms.DateField(
         label="Distribuído a partir de",
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
     )
     data_fim = forms.DateField(
         label="Distribuído até",
         required=False,
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
     )
 
     def __init__(self, *args, **kwargs) -> None:
