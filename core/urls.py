@@ -10,6 +10,8 @@ from django.urls import path
 from .views import (
     BuscaGlobalView,
     DashboardView,
+    DistribuicaoPDFView,
+    DistribuicaoView,
     RelatorioFazendariaView,
     RelatorioGeralView,
     ToggleThemeView,
@@ -29,4 +31,6 @@ urlpatterns = [
         name="relatorio_geral",
     ),
     path("tema/", ToggleThemeView.as_view(), name="toggle_theme"),
+    path("distribuicao/", DistribuicaoView.as_view(), name="distribuicao"),
+    path("distribuicao/pdf/", DistribuicaoPDFView.as_view(), name="distribuicao_pdf"),
 ]

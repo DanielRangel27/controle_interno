@@ -18,6 +18,10 @@
        class="{% if request.resolver_match.namespace == 'geral' %}is-active{% endif %}">
       Geral
     </a>
+    <a href="{% url 'core:distribuicao' %}"
+       class="{% if request.resolver_match.url_name == 'distribuicao' %}is-active{% endif %}">
+      Distribuição
+    </a>
     {% if user.is_staff %}
       <a href="{% url 'auditoria:lista' %}"
          class="{% if request.resolver_match.namespace == 'auditoria' %}is-active{% endif %}">

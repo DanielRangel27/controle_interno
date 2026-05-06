@@ -1,0 +1,309 @@
+{% extends "core/base.html" %}
+
+{% block title %}Distribuição de Processos{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* ── Distribuição page styles ─────────────────────────────── */
+  .dist-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 18px;
+  }
+
+  @media (max-width: 880px) {
+    .dist-layout { grid-template-columns: 1fr; }
+  }
+
+  .dist-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    max-height: 520px;
+  }
+
+  .dist-panel__header {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .dist-panel__title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .dist-panel__count {
+    font-size: 12px;
+    color: var(--color-fg-muted);
+  }
+
+  .dist-panel__search {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .dist-panel__search input {
+    width: 100%;
+    font-size: 13px;
+    padding: 6px 10px;
+  }
+
+  .dist-panel__list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+
+  .dist-panel__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 13px;
+    transition: background 0.12s;
+    cursor: pointer;
+  }
+
+  .dist-panel__item:hover {
+    background: var(--color-surface-alt);
+  }
+
+  .dist-panel__item:last-child {
+    border-bottom: none;
+  }
+
+  .dist-panel__item input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: auto;
+    cursor: pointer;
+  }
+
+  .dist-panel__item label {
+    cursor: pointer;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dist-panel__item .proc-num {
+    font-weight: 600;
+  }
+
+  .dist-panel__item .proc-ano {
+    color: var(--color-fg-muted);
+    font-size: 11px;
+  }
+
+  .dist-panel__item .proc-sit {
+    margin-left: auto;
+  }
+
+  /* ── Responsável + Submit bar ──────────────────────────────── */
+  .dist-bar {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 18px;
+  }
+
+  .dist-bar .form-row {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  .dist-bar .form-row select {
+    width: 100%;
+  }
+
+  .select-actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .select-actions button {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface-alt);
+    color: var(--color-fg-muted);
+    cursor: pointer;
+  }
+
+  .select-actions button:hover {
+    background: var(--color-primary);
+    color: var(--color-primary-fg);
+    border-color: var(--color-primary);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+  <section class="page-header">
+    <div>
+      <h1>Distribuição de Processos</h1>
+      <p style="margin: 4px 0 0; color: var(--color-fg-muted);">
+        Selecione os processos e o responsável para gerar o PDF de distribuição.
+      </p>
+    </div>
+  </section>
+
+  <form method="post" action="{% url 'core:distribuicao_pdf' %}" target="_blank" id="dist-form">
+    {% csrf_token %}
+
+    <!-- Responsável bar -->
+    <div class="dist-bar">
+      <div class="form-row">
+        <label for="id_responsavel">Responsável (Procurador)</label>
+        <select name="responsavel" id="id_responsavel" class="form-control" required>
+          <option value="">— Selecione —</option>
+          {% for proc in procuradores %}
+            <option value="{{ proc.nome }}">{{ proc.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn--primary" id="btn-gerar">
+        📄 Gerar PDF de Distribuição
+      </button>
+    </div>
+
+    <!-- Two-panel layout: Fazendária | Geral -->
+    <div class="dist-layout">
+
+      <!-- FAZENDÁRIA panel -->
+      <div class="dist-panel">
+        <div class="dist-panel__header">
+          <h2 class="dist-panel__title">Fazendária</h2>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="dist-panel__count" id="faz-count">0 selecionados</span>
+            <div class="select-actions">
+              <button type="button" onclick="toggleAll('faz', true)">Todos</button>
+              <button type="button" onclick="toggleAll('faz', false)">Nenhum</button>
+            </div>
+          </div>
+        </div>
+        <div class="dist-panel__search">
+          <input type="search" placeholder="Filtrar processos…" oninput="filterList(this, 'faz-list')" aria-label="Filtrar fazendária" />
+        </div>
+        <ul class="dist-panel__list" id="faz-list">
+          {% for p in processos_fazendaria %}
+            <li class="dist-panel__item" data-text="{{ p.numero_processo }} {{ p.ano }} {{ p.get_situacao_display }}">
+              <input type="checkbox" name="faz" value="{{ p.pk }}" id="faz-{{ p.pk }}" onchange="updateCount('faz')">
+              <label for="faz-{{ p.pk }}">
+                <span class="proc-num">{{ p.numero_processo }}</span>
+                <span class="proc-ano">{{ p.ano }}</span>
+                <span class="proc-sit">
+                  <span class="badge
+                    {% if p.situacao == 'concluido' %}badge--yellow
+                    {% elif p.situacao == 'andamento' %}badge--info
+                    {% elif p.situacao == 'remessa' %}badge--warning
+                    {% elif p.situacao == 'distribuicao' %}badge--purple
+                    {% elif p.situacao == 'no_armario' %}badge--danger
+                    {% elif p.situacao == 'arquivado' %}badge--gray
+                    {% elif p.situacao == 'entregue' %}badge--success
+                    {% endif %}">{{ p.get_situacao_display }}</span>
+                </span>
+              </label>
+            </li>
+          {% empty %}
+            <li class="dist-panel__item" style="color: var(--color-fg-muted);">Nenhum processo encontrado.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+      <!-- GERAL panel -->
+      <div class="dist-panel">
+        <div class="dist-panel__header">
+          <h2 class="dist-panel__title">Geral</h2>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="dist-panel__count" id="ger-count">0 selecionados</span>
+            <div class="select-actions">
+              <button type="button" onclick="toggleAll('ger', true)">Todos</button>
+              <button type="button" onclick="toggleAll('ger', false)">Nenhum</button>
+            </div>
+          </div>
+        </div>
+        <div class="dist-panel__search">
+          <input type="search" placeholder="Filtrar processos…" oninput="filterList(this, 'ger-list')" aria-label="Filtrar geral" />
+        </div>
+        <ul class="dist-panel__list" id="ger-list">
+          {% for p in processos_geral %}
+            <li class="dist-panel__item" data-text="{{ p.numero_processo }} {{ p.ano }} {{ p.get_situacao_display }}">
+              <input type="checkbox" name="ger" value="{{ p.pk }}" id="ger-{{ p.pk }}" onchange="updateCount('ger')">
+              <label for="ger-{{ p.pk }}">
+                <span class="proc-num">{{ p.numero_processo }}</span>
+                <span class="proc-ano">{{ p.ano }}</span>
+                <span class="proc-sit">
+                  <span class="badge
+                    {% if p.situacao == 'concluido' %}badge--yellow
+                    {% elif p.situacao == 'andamento' %}badge--info
+                    {% elif p.situacao == 'distribuicao' %}badge--purple
+                    {% elif p.situacao == 'arquivado' %}badge--gray
+                    {% elif p.situacao == 'entregue' %}badge--success
+                    {% endif %}">{{ p.get_situacao_display }}</span>
+                </span>
+              </label>
+            </li>
+          {% empty %}
+            <li class="dist-panel__item" style="color: var(--color-fg-muted);">Nenhum processo encontrado.</li>
+          {% endfor %}
+        </ul>
+      </div>
+
+    </div>
+  </form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  /* ── Filter list by typing ──────────────────────────────────── */
+  function filterList(input, listId) {
+    const term = input.value.toLowerCase();
+    const items = document.getElementById(listId).querySelectorAll('.dist-panel__item');
+    items.forEach(function(item) {
+      const text = (item.getAttribute('data-text') || '').toLowerCase();
+      item.style.display = text.includes(term) ? '' : 'none';
+    });
+  }
+
+  /* ── Select/deselect all visible checkboxes ─────────────────── */
+  function toggleAll(prefix, checked) {
+    const list = document.getElementById(prefix + '-list');
+    list.querySelectorAll('.dist-panel__item').forEach(function(item) {
+      if (item.style.display !== 'none') {
+        const cb = item.querySelector('input[type="checkbox"]');
+        if (cb) cb.checked = checked;
+      }
+    });
+    updateCount(prefix);
+  }
+
+  /* ── Update selection counter ───────────────────────────────── */
+  function updateCount(prefix) {
+    const list = document.getElementById(prefix + '-list');
+    const total = list.querySelectorAll('input[type="checkbox"]:checked').length;
+    document.getElementById(prefix + '-count').textContent = total + ' selecionado' + (total !== 1 ? 's' : '');
+  }
+</script>
+{% endblock %}
