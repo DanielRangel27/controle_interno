@@ -552,6 +552,7 @@ def global_search(termo: str, limit_per_module: int = 25) -> list[SearchHit]:
             ProcessoFazendaria.objects.filter(
                 Q(numero_processo__icontains=termo)
                 | Q(observacoes__icontains=termo)
+                | Q(apensos__icontains=termo)
             )
             .select_related("assunto")[:limit_per_module]
         )

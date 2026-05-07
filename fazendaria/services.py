@@ -79,6 +79,7 @@ def filter_processos(
         qs = qs.filter(
             Q(numero_processo__icontains=filters.busca)
             | Q(observacoes__icontains=filters.busca)
+            | Q(apensos__icontains=filters.busca)
         )
     if filters.ano:
         qs = qs.filter(ano=filters.ano)
@@ -111,6 +112,7 @@ def export_columns():
         ("Ano", lambda p: p.ano),
         ("Procurador", lambda p: str(p.procurador) if p.procurador else ""),
         ("Recebimento", lambda p: p.data_recebimento),
+        ("Apensos", lambda p: p.apensos or ""),
         ("Assunto", lambda p: str(p.assunto) if p.assunto else ""),
         ("Observações", lambda p: p.observacoes or ""),
         ("Situação", lambda p: p.get_situacao_display()),

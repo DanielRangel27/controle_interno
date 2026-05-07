@@ -324,6 +324,61 @@ def parse_apensos(value: object) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Apenso (fazendaria): detects "apenso" rows linked to the previous main row.
+# ---------------------------------------------------------------------------
+
+
+_APENSO_TOKENS: frozenset[str] = frozenset({"apenso", "apensos"})
+
+
+def is_fazendaria_apenso_row(value: object) -> bool:
+    """Return True when the first cell of a fazendaria row marks an apenso.
+
+    Real samples observed in the 2026 sheet: ``"apenso"``, ``"APENSO"``,
+    ``"Apenso"``. The number of the apenso lives in the next column.
+    """
+
+    if value is None:
+        return False
+    return str(value).strip().lower() in _APENSO_TOKENS
+
+
+def extract_apenso_numero(value: object) -> str:
+    """Extract the apenso process number from the second column of an apenso row.
+
+    Accepts both ``"3928/15"`` and ``"3712/2025"`` formats. Returns ``""``
+    when the cell is empty or unparseable so callers can skip noise without
+    raising.
+    """
+
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    parsed = parse_numero_processo(text)
+    if parsed is not None:
+        return parsed.numero
+    return text
+
+
+def merge_apensos(existing: str, novo: str) -> str:
+    """Merge an apenso into a ``"; "``-separated string without duplicates.
+
+    Comparison is case-insensitive and ignores surrounding whitespace.
+    """
+
+    novo = (novo or "").strip()
+    if not novo:
+        return existing or ""
+    atuais = [item.strip() for item in (existing or "").split(";") if item.strip()]
+    if any(item.lower() == novo.lower() for item in atuais):
+        return existing or ""
+    atuais.append(novo)
+    return "; ".join(atuais)
+
+
+# ---------------------------------------------------------------------------
 # Responsavel (geral): "Iely / Rodrigo" -> (primary, secondary)
 # ---------------------------------------------------------------------------
 
@@ -392,6 +447,7 @@ class FazendariaRow:
     destino_nome: str | None
     data_remessa: dt.date | None
     tipos_parecer: list[str] = field(default_factory=list)
+    apensos: str = ""
 
 
 def parse_fazendaria_row(row: tuple) -> FazendariaRow | None:
@@ -400,6 +456,9 @@ def parse_fazendaria_row(row: tuple) -> FazendariaRow | None:
     The 2026 tab has 14 raw columns due to merged cells; only 6 carry data:
         col1=numero, col2=proc+date, col5=assunto, col10=situacao,
         col12=destino+date, col13=parecer.
+
+    Returns ``None`` when the row is noise (blank, apenso marker, etc.).
+    Callers must handle apenso rows separately via :func:`is_fazendaria_apenso_row`.
     """
 
     def col(idx: int) -> object:
@@ -429,6 +488,7 @@ def parse_fazendaria_row(row: tuple) -> FazendariaRow | None:
         destino_nome=destino_nome,
         data_remessa=data_remessa,
         tipos_parecer=parse_tipos_parecer(col(12)),
+        apensos="",
     )
 
 

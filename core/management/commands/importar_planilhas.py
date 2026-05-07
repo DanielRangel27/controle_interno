@@ -23,6 +23,9 @@ from core.importers import (
     FazendariaRow,
     GeralRow,
     TIPO_PARECER_CANONICOS,
+    extract_apenso_numero,
+    is_fazendaria_apenso_row,
+    merge_apensos,
     parse_fazendaria_row,
     parse_geral_row,
 )
@@ -42,6 +45,7 @@ class ImportStats:
     procuradores_criados: int = 0
     setores_criados: int = 0
     assuntos_criados: int = 0
+    apensos_vinculados: int = 0
 
 
 class Command(BaseCommand):
@@ -122,17 +126,44 @@ class Command(BaseCommand):
         rows = self._read_rows(path, aba)
         stats = ImportStats()
 
+        # Apenso rows refer to the previous main row, so we must remember the
+        # last process upserted to attach the apenso number to it. We also
+        # reset apensos on every main row to keep the import idempotent.
+        last_processo: ProcessoFazendaria | None = None
+
         for raw in rows:
             stats.rows_read += 1
+            primeira_celula = raw[0] if raw else None
+            segunda_celula = raw[1] if raw and len(raw) > 1 else None
+
+            if is_fazendaria_apenso_row(primeira_celula):
+                numero_apenso = extract_apenso_numero(segunda_celula)
+                if last_processo is None or not numero_apenso:
+                    stats.rows_skipped += 1
+                    logger.warning(
+                        "apenso row without main process or number",
+                        extra={"raw": raw[:2]},
+                    )
+                    continue
+                novo = merge_apensos(last_processo.apensos, numero_apenso)
+                if novo != last_processo.apensos:
+                    last_processo.apensos = novo
+                    last_processo.save(update_fields=["apensos", "atualizado_em"])
+                    stats.apensos_vinculados += 1
+                continue
+
             record = parse_fazendaria_row(raw)
             if record is None:
                 stats.rows_skipped += 1
+                last_processo = None
                 continue
-            self._upsert_fazendaria(record, stats)
+            last_processo = self._upsert_fazendaria(record, stats)
 
         return stats
 
-    def _upsert_fazendaria(self, record: FazendariaRow, stats: ImportStats) -> None:
+    def _upsert_fazendaria(
+        self, record: FazendariaRow, stats: ImportStats
+    ) -> ProcessoFazendaria:
         procurador = self._ensure_procurador(
             record.procurador_nome, Modulo.FAZENDARIA, stats
         )
@@ -144,6 +175,7 @@ class Command(BaseCommand):
             "procurador": procurador,
             "data_recebimento": record.data_recebimento,
             "assunto": assunto,
+            "apensos": record.apensos,
             "situacao": situacao,
             "destino": destino,
             "data_remessa": record.data_remessa,
@@ -166,6 +198,7 @@ class Command(BaseCommand):
             stats.processos_criados += 1
         else:
             stats.processos_atualizados += 1
+        return obj
 
     # ------------------------------------------------------------------
     # Geral
@@ -325,6 +358,7 @@ class Command(BaseCommand):
         self.stdout.write(f"  Procuradores novos  : {stats.procuradores_criados}")
         self.stdout.write(f"  Setores novos       : {stats.setores_criados}")
         self.stdout.write(f"  Assuntos novos      : {stats.assuntos_criados}")
+        self.stdout.write(f"  Apensos vinculados  : {stats.apensos_vinculados}")
         logger.info(
             "import stats",
             extra={
@@ -333,5 +367,6 @@ class Command(BaseCommand):
                 "rows_skipped": stats.rows_skipped,
                 "criados": stats.processos_criados,
                 "atualizados": stats.processos_atualizados,
+                "apensos_vinculados": stats.apensos_vinculados,
             },
         )

@@ -20,7 +20,7 @@ class ProcessoFazendariaAdmin(admin.ModelAdmin):
         "data_remessa",
     )
     list_filter = ("ano", "situacao", "procurador", "destino")
-    search_fields = ("numero_processo", "observacoes")
+    search_fields = ("numero_processo", "observacoes", "apensos")
     autocomplete_fields = ("procurador", "assunto", "destino")
     filter_horizontal = ("tipos_parecer",)
     date_hierarchy = "data_recebimento"

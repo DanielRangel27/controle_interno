@@ -24,6 +24,10 @@
         <dd>{{ processo.data_recebimento|date:"d/m/Y"|default:"-" }}</dd>
       </div>
       <div>
+        <dt>Apensos</dt>
+        <dd>{{ processo.apensos|default:"-" }}</dd>
+      </div>
+      <div>
         <dt>Assunto</dt>
         <dd>{{ processo.assunto|default:"-" }}</dd>
       </div>

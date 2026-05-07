@@ -10,6 +10,9 @@ After resolving merged cells, that tab has 6 logical columns:
     4. SITUACAO                        -> situacao
     5. Destino / Data Remessa          -> destino + data_remessa
     6. Parecer / Despacho / Remessa    -> tipos_parecer (M2M)
+
+Linhas adicionais com ``apenso`` na coluna 1 são absorvidas pelo processo
+imediatamente acima e armazenadas como texto em :attr:`ProcessoFazendaria.apensos`.
 """
 
 from __future__ import annotations
@@ -56,6 +59,7 @@ class ProcessoFazendaria(TimestampedModel):
         null=True,
         blank=True,
     )
+    apensos = models.CharField("apensos", max_length=240, blank=True)
     observacoes = models.TextField("observações", blank=True)
 
     situacao = models.CharField(

@@ -25,6 +25,7 @@ class ProcessoFazendariaForm(forms.ModelForm):
             "ano",
             "procurador",
             "data_recebimento",
+            "apensos",
             "assunto",
             "observacoes",
             "situacao",
@@ -37,6 +38,9 @@ class ProcessoFazendariaForm(forms.ModelForm):
             "data_remessa": forms.DateInput(format="%Y-%m-%d", attrs={"type": "date"}),
             "observacoes": forms.Textarea(attrs={"rows": 3}),
             "tipos_parecer": forms.CheckboxSelectMultiple,
+            "apensos": forms.TextInput(
+                attrs={"placeholder": "Ex.: 3928/15; 7689/21 ou deixe em branco"}
+            ),
         }
 
     def __init__(self, *args, **kwargs) -> None:
@@ -99,7 +103,7 @@ class FiltroProcessoForm(forms.Form):
         label="Busca",
         required=False,
         widget=forms.TextInput(
-            attrs={"placeholder": "Número do processo ou observação"}
+            attrs={"placeholder": "Número, observação ou apenso"}
         ),
     )
     ano = forms.IntegerField(label="Ano", required=False, min_value=2000, max_value=2100)

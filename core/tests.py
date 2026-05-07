@@ -14,6 +14,9 @@ from django.test import SimpleTestCase, TestCase, override_settings
 
 from .importers import (
     coerce_date,
+    extract_apenso_numero,
+    is_fazendaria_apenso_row,
+    merge_apensos,
     parse_apensos,
     parse_data_nome,
     parse_destino_fazendaria,
@@ -173,6 +176,48 @@ class ParseApensosTests(SimpleTestCase):
         self.assertEqual(parse_apensos(" II volumes "), "II volumes")
 
 
+class FazendariaApensoHelpersTests(SimpleTestCase):
+    def test_is_fazendaria_apenso_row_detects_variations(self) -> None:
+        self.assertTrue(is_fazendaria_apenso_row("apenso"))
+        self.assertTrue(is_fazendaria_apenso_row("APENSO"))
+        self.assertTrue(is_fazendaria_apenso_row(" Apenso "))
+        self.assertTrue(is_fazendaria_apenso_row("apensos"))
+
+    def test_is_fazendaria_apenso_row_rejects_other_values(self) -> None:
+        self.assertFalse(is_fazendaria_apenso_row(""))
+        self.assertFalse(is_fazendaria_apenso_row(None))
+        self.assertFalse(is_fazendaria_apenso_row("547/25"))
+        self.assertFalse(is_fazendaria_apenso_row("apenso de algo"))
+
+    def test_extract_apenso_numero_normalizes_known_formats(self) -> None:
+        self.assertEqual(extract_apenso_numero("3928/15"), "3928/15")
+        self.assertEqual(extract_apenso_numero(" 7689/21 "), "7689/21")
+        self.assertEqual(extract_apenso_numero("3712/2025"), "3712/2025")
+
+    def test_extract_apenso_numero_falls_back_to_raw_text(self) -> None:
+        self.assertEqual(extract_apenso_numero("II volumes"), "II volumes")
+
+    def test_extract_apenso_numero_returns_empty_for_blank(self) -> None:
+        self.assertEqual(extract_apenso_numero(None), "")
+        self.assertEqual(extract_apenso_numero("   "), "")
+
+    def test_merge_apensos_appends_unique_values(self) -> None:
+        self.assertEqual(merge_apensos("", "3928/15"), "3928/15")
+        self.assertEqual(merge_apensos("3928/15", "7689/21"), "3928/15; 7689/21")
+
+    def test_merge_apensos_is_case_insensitive_and_idempotent(self) -> None:
+        self.assertEqual(merge_apensos("3928/15", "3928/15"), "3928/15")
+        self.assertEqual(merge_apensos("3928/15", " 3928/15 "), "3928/15")
+        self.assertEqual(
+            merge_apensos("3928/15; 7689/21", "7689/21"),
+            "3928/15; 7689/21",
+        )
+
+    def test_merge_apensos_preserves_existing_when_new_is_blank(self) -> None:
+        self.assertEqual(merge_apensos("3928/15", ""), "3928/15")
+        self.assertEqual(merge_apensos("3928/15", None), "3928/15")  # type: ignore[arg-type]
+
+
 class ParseResponsaveisGeralTests(SimpleTestCase):
     def test_single(self) -> None:
         result = parse_responsaveis_geral("Adolpho")
@@ -272,6 +317,94 @@ class ParseGeralRowTests(SimpleTestCase):
         self.assertEqual(record.responsavel_secundario_nome, "Rodrigo")
         self.assertEqual(record.apensos, "301/2014")
         self.assertEqual(record.tipos_parecer, ["R", "Pd"])
+
+
+class ImportarPlanilhasFazendariaApensoTests(TestCase):
+    """End-to-end test for the fazendaria importer attaching apenso rows."""
+
+    def _build_workbook(self, path: Path, rows: list[tuple]) -> None:
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "2026"
+        for row in rows:
+            ws.append(row)
+        wb.save(path)
+
+    def test_apenso_row_is_attached_to_previous_main_row(self) -> None:
+        from django.core.management import call_command
+
+        from fazendaria.models import ProcessoFazendaria
+
+        rows: list[tuple] = [
+            (
+                "547/25", "05/01/2026 - Dra. Eduarda B", None, None,
+                "Lançamento Predial", None, None, None, None, "concluído",
+                None, "Secat-12/01/26", "Despacho", None,
+            ),
+            (
+                "apenso", "3928/15", None, None, None, None, None, None,
+                None, None, None, None, None, None,
+            ),
+            (
+                "apenso", "7689/21", None, None, None, None, None, None,
+                None, None, None, None, None, None,
+            ),
+            (
+                "548/25", "06/01/2026 - Dra. Eduarda B", None, None,
+                "Outro assunto", None, None, None, None, "Andamento",
+                None, None, None, None,
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "fazendaria.xlsx"
+            self._build_workbook(path, rows)
+
+            call_command("importar_planilhas", fazendaria=str(path), aba="2026")
+
+            principal = ProcessoFazendaria.objects.get(numero_processo="547/25")
+            self.assertEqual(principal.apensos, "3928/15; 7689/21")
+
+            sem_apenso = ProcessoFazendaria.objects.get(numero_processo="548/25")
+            self.assertEqual(sem_apenso.apensos, "")
+
+            # Apenso rows must NOT be persisted as separate processes.
+            self.assertFalse(
+                ProcessoFazendaria.objects.filter(numero_processo="3928/15").exists()
+            )
+            self.assertFalse(
+                ProcessoFazendaria.objects.filter(numero_processo="7689/21").exists()
+            )
+
+    def test_reimport_is_idempotent_for_apensos(self) -> None:
+        from django.core.management import call_command
+
+        from fazendaria.models import ProcessoFazendaria
+
+        rows: list[tuple] = [
+            (
+                "547/25", "05/01/2026 - Dra. Eduarda B", None, None,
+                "Lançamento Predial", None, None, None, None, "concluído",
+                None, "Secat-12/01/26", "Despacho", None,
+            ),
+            (
+                "apenso", "3928/15", None, None, None, None, None, None,
+                None, None, None, None, None, None,
+            ),
+        ]
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            path = Path(tmp_dir) / "fazendaria.xlsx"
+            self._build_workbook(path, rows)
+
+            call_command("importar_planilhas", fazendaria=str(path), aba="2026")
+            call_command("importar_planilhas", fazendaria=str(path), aba="2026")
+
+            principal = ProcessoFazendaria.objects.get(numero_processo="547/25")
+            self.assertEqual(principal.apensos, "3928/15")
+            self.assertEqual(ProcessoFazendaria.objects.count(), 1)
 
 
 def _git_env() -> dict[str, str]:

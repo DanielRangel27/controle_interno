@@ -40,6 +40,11 @@
           {{ form.data_recebimento }}
         </div>
         <div class="form-row">
+          <label for="{{ form.apensos.id_for_label }}">Apensos</label>
+          {{ form.apensos }}
+          {% if form.apensos.errors %}<ul class="errors">{% for e in form.apensos.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+        </div>
+        <div class="form-row">
           <label for="{{ form.assunto_nome.id_for_label }}">Assunto</label>
           {{ form.assunto_nome }}
           {% if form.assunto_nome.errors %}<ul class="errors">{% for e in form.assunto_nome.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}

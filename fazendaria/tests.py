@@ -266,6 +266,40 @@ class ProcessoFormTests(TestCase):
         self.assertIn("numero_processo", form.errors)
         self.assertIn("ano", form.errors)
 
+    def test_process_form_persists_apensos_text(self) -> None:
+        form = ProcessoFazendariaForm(
+            data={
+                "numero_processo": "7777/26",
+                "ano": 2026,
+                "apensos": "3928/15; 7689/21",
+                "situacao": SituacaoFazendaria.ANDAMENTO,
+            }
+        )
+        self.assertTrue(form.is_valid(), msg=form.errors)
+        processo = form.save()
+        self.assertEqual(processo.apensos, "3928/15; 7689/21")
+
     def test_filter_form_accepts_empty(self) -> None:
         form = FiltroProcessoForm(data={})
         self.assertTrue(form.is_valid(), msg=form.errors)
+
+
+class ProcessoApensoSearchTests(TestCase):
+    """Ensure busca filter scans the new apensos field."""
+
+    def test_list_processos_searches_by_apensos(self) -> None:
+        ProcessoFazendaria.objects.create(
+            numero_processo="2222/26",
+            ano=2026,
+            apensos="3928/15",
+            situacao=SituacaoFazendaria.ANDAMENTO,
+        )
+        ProcessoFazendaria.objects.create(
+            numero_processo="3333/26",
+            ano=2026,
+            situacao=SituacaoFazendaria.ANDAMENTO,
+        )
+
+        qs = list_processos(ProcessoFilters(busca="3928/15"))
+        numeros = [p.numero_processo for p in qs]
+        self.assertEqual(numeros, ["2222/26"])
