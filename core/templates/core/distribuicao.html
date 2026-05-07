@@ -132,7 +132,8 @@
     min-width: 220px;
   }
 
-  .dist-bar .form-row select {
+  .dist-bar .form-row select,
+  .dist-bar .form-row input {
     width: 100%;
   }
 
@@ -174,6 +175,17 @@
 
     <!-- Responsável bar -->
     <div class="dist-bar">
+      <div class="form-row">
+        <label for="id_assunto">Assunto</label>
+        <input
+          type="text"
+          name="assunto"
+          id="id_assunto"
+          class="form-control"
+          placeholder="Ex.: Distribuição mensal de processos"
+          maxlength="180"
+        />
+      </div>
       <div class="form-row">
         <label for="id_responsavel">Responsável (Procurador)</label>
         <select name="responsavel" id="id_responsavel" class="form-control" required>

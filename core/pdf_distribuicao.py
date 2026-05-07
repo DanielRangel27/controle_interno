@@ -34,6 +34,8 @@ def _data_por_extenso(d: date) -> str:
 def gerar_pdf_distribuicao(
     processos: Sequence[dict],
     responsavel: str,
+    assunto: str = "",
+    generated_by: str = "",
     data_geracao: date | None = None,
 ) -> io.BytesIO:
     """Build a PDF for process distribution and return it as a BytesIO buffer.
@@ -45,6 +47,10 @@ def gerar_pdf_distribuicao(
         ``modulo`` (e.g. "Fazendária" or "Geral").
     responsavel:
         Full name of the person responsible (procurador).
+    assunto:
+        Subject shown in the PDF metadata section.
+    generated_by:
+        Name of the logged user who generated the PDF.
     data_geracao:
         Date shown on the document; defaults to today.
     """
@@ -85,6 +91,11 @@ def gerar_pdf_distribuicao(
     # ── Date & Responsible ───────────────────────────────────────────
     c.setFont("Helvetica", 12)
     c.drawString(left, y, f"Data de emissão:  {_data_por_extenso(data_geracao)}")
+    y -= 0.7 * cm
+
+    c.setFont("Helvetica", 12)
+    assunto_text = assunto.strip() or "Não informado"
+    c.drawString(left, y, f"Assunto:  {assunto_text}")
     y -= 0.7 * cm
 
     c.drawString(left, y, f"Responsável:  {responsavel}")
@@ -130,8 +141,7 @@ def gerar_pdf_distribuicao(
         f"Certifico que o{plural} {qtd} processo{plural} administrativo{plural} "
         f"listado{plural} acima {'foram distribuídos' if qtd > 1 else 'foi distribuído'} "
         f"ao(à) procurador(a) {responsavel}, "
-        f"na data de {_data_por_extenso(data_geracao)}, para análise e "
-        "emissão de parecer/despacho."
+        f"na data de {_data_por_extenso(data_geracao)}."
     )
 
     lines = simpleSplit(body, "Helvetica", 11, usable)
@@ -150,44 +160,21 @@ def gerar_pdf_distribuicao(
         c.showPage()
         y = height - 5 * cm
 
-    # Date line
-    c.setFont("Helvetica", 11)
-    c.drawCentredString(center_x, y, "_______ , _____ de _______________ de ________")
-    y -= 0.4 * cm
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(center_x, y, "(Local e Data)")
-    y -= 2.5 * cm
 
-    # Signature line – responsável
-    c.setLineWidth(0.5)
-    c.line(sig_x, y, sig_x + sig_line_width, y)
-    y -= 0.4 * cm
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(center_x, y, responsavel)
-    y -= 0.4 * cm
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(center_x, y, "Assinatura do(a) Responsável")
-
+    
     y -= 3 * cm
 
-    # Signature line – quem distribui
-    c.setLineWidth(0.5)
-    c.line(sig_x, y, sig_x + sig_line_width, y)
-    y -= 0.4 * cm
-    c.setFont("Helvetica", 10)
-    c.drawCentredString(center_x, y, "____________________________________")
-    y -= 0.4 * cm
-    c.setFont("Helvetica", 9)
-    c.drawCentredString(center_x, y, "Assinatura de quem distribuiu")
-
+    
     # ── Footer ───────────────────────────────────────────────────────
     c.setFont("Helvetica", 8)
     c.setFillColorRGB(0.5, 0.5, 0.5)
     c.drawCentredString(
         center_x,
-        2 * cm,
+        2.3 * cm,
         f"Documento gerado em {data_geracao:%d/%m/%Y} — Controle Interno",
     )
+    generated_by_text = generated_by.strip() or "Usuário não identificado"
+    c.drawCentredString(center_x, 1.9 * cm, f"Gerado por: {generated_by_text}")
 
     c.showPage()
     c.save()

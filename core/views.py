@@ -123,6 +123,7 @@ class DistribuicaoPDFView(LoginRequiredMixin, View):
         from django.contrib import messages
 
         responsavel_raw = request.POST.get("responsavel", "").strip()
+        assunto = request.POST.get("assunto", "").strip()
         if not responsavel_raw:
             messages.error(request, "Selecione um responsável.")
             return HttpResponseRedirect(reverse("core:distribuicao"))
@@ -149,10 +150,13 @@ class DistribuicaoPDFView(LoginRequiredMixin, View):
             fazendaria_ids=faz_ids,
             geral_ids=ger_ids,
         )
+        generated_by = request.user.get_full_name().strip() or request.user.username
 
         buf = gerar_pdf_distribuicao(
             processos=result.processos_pdf,
             responsavel=result.responsavel_nome,
+            assunto=assunto,
+            generated_by=generated_by,
         )
 
         filename = "distribuicao_processos.pdf"
@@ -164,6 +168,8 @@ class DistribuicaoPDFView(LoginRequiredMixin, View):
                 "user_id": request.user.pk,
                 "procurador_id": procurador_id,
                 "responsavel": result.responsavel_nome,
+                "assunto": assunto,
+                "generated_by": generated_by,
                 "fazendaria_atualizados": result.fazendaria_atualizados,
                 "geral_atualizados": result.geral_atualizados,
             },
