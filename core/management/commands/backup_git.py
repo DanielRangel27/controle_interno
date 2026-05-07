@@ -25,6 +25,7 @@ Credential Manager with a Personal Access Token, or an SSH remote).
 from __future__ import annotations
 
 import logging
+import hashlib
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -178,8 +179,16 @@ def write_dump(config: BackupConfig, timestamp: datetime) -> Path:
 
     backups_dir = config.repo_dir / config.target_subdir / "backups"
     backups_dir.mkdir(parents=True, exist_ok=True)
-    target = backups_dir / f"db-{timestamp:%Y-%m-%d-%H%M%S}.json"
-    with open(target, "w", encoding="utf-8") as fh:
+
+    def sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
+
+    tmp = backups_dir / "dump-tmp.json"
+    with open(tmp, "w", encoding="utf-8") as fh:
         call_command(
             "dumpdata",
             "--indent",
@@ -196,6 +205,16 @@ def write_dump(config: BackupConfig, timestamp: datetime) -> Path:
             "sessions.session",
             stdout=fh,
         )
+
+    existing = sorted(backups_dir.glob("db-*.json"), key=lambda p: p.stat().st_mtime)
+    if existing:
+        latest = existing[-1]
+        if sha256(latest) == sha256(tmp):
+            tmp.unlink(missing_ok=True)
+            return latest
+
+    target = backups_dir / f"db-{timestamp:%Y-%m-%d-%H%M%S}.json"
+    tmp.replace(target)
     return target
 
 
