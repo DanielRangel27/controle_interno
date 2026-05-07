@@ -481,11 +481,14 @@ def distribuir_processos(
 
     with transaction.atomic():
         if fazendaria_ids:
-            faz_qs = ProcessoFazendaria.objects.filter(pk__in=fazendaria_ids)
+            faz_qs = ProcessoFazendaria.objects.select_related("assunto").filter(
+                pk__in=fazendaria_ids
+            )
             for p in faz_qs:
                 processos_pdf.append(
                     {
                         "numero_processo": p.numero_processo,
+                        "assunto": str(p.assunto) if p.assunto else "—",
                         "ano": p.ano,
                         "modulo": "Fazendária",
                     }
@@ -497,11 +500,14 @@ def distribuir_processos(
             )
 
         if geral_ids:
-            ger_qs = ProcessoGeral.objects.filter(pk__in=geral_ids)
+            ger_qs = ProcessoGeral.objects.select_related("assunto").filter(
+                pk__in=geral_ids
+            )
             for p in ger_qs:
                 processos_pdf.append(
                     {
                         "numero_processo": p.numero_processo,
+                        "assunto": str(p.assunto) if p.assunto else "—",
                         "ano": p.ano,
                         "modulo": "Geral",
                     }

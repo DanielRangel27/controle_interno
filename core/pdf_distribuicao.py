@@ -48,7 +48,7 @@ def gerar_pdf_distribuicao(
     responsavel:
         Full name of the person responsible (procurador).
     assunto:
-        Subject shown in the PDF metadata section.
+        Optional generic subject received from the form.
     generated_by:
         Name of the logged user who generated the PDF.
     data_geracao:
@@ -93,21 +93,18 @@ def gerar_pdf_distribuicao(
     c.drawString(left, y, f"Data de emissão:  {_data_por_extenso(data_geracao)}")
     y -= 0.7 * cm
 
-    c.setFont("Helvetica", 12)
-    assunto_text = assunto.strip() or "Não informado"
-    c.drawString(left, y, f"Assunto:  {assunto_text}")
-    y -= 0.7 * cm
-
     c.drawString(left, y, f"Responsável:  {responsavel}")
     y -= 1.2 * cm
 
     # ── Table header ─────────────────────────────────────────────────
     c.setFont("Helvetica-Bold", 11)
     col_num_x = left
-    col_ano_x = left + 8 * cm
-    col_mod_x = left + 11 * cm
+    col_assunto_x = left + 4.8 * cm
+    col_ano_x = left + 11.7 * cm
+    col_mod_x = left + 13.6 * cm
 
     c.drawString(col_num_x, y, "Nº Processo")
+    c.drawString(col_assunto_x, y, "Assunto")
     c.drawString(col_ano_x, y, "Ano")
     c.drawString(col_mod_x, y, "Módulo")
     y -= 0.15 * cm
@@ -115,18 +112,26 @@ def gerar_pdf_distribuicao(
     c.line(left, y, right, y)
     y -= 0.5 * cm
 
+    assunto_col_width = 6.7 * cm
+
     # ── Process rows ─────────────────────────────────────────────────
     c.setFont("Helvetica", 11)
     for proc in processos:
-        if y < 6 * cm:
+        assunto_row = proc.get("assunto") or assunto or "—"
+        assunto_lines = simpleSplit(str(assunto_row), "Helvetica", 11, assunto_col_width) or ["—"]
+        row_height = max(len(assunto_lines), 1) * 0.45 * cm
+
+        if y - row_height < 6 * cm:
             c.showPage()
             y = height - 3 * cm
             c.setFont("Helvetica", 11)
 
         c.drawString(col_num_x, y, str(proc["numero_processo"]))
+        for idx, line in enumerate(assunto_lines):
+            c.drawString(col_assunto_x, y - (idx * 0.45 * cm), line)
         c.drawString(col_ano_x, y, str(proc["ano"]))
         c.drawString(col_mod_x, y, str(proc.get("modulo", "")))
-        y -= 0.55 * cm
+        y -= max(row_height, 0.55 * cm)
 
     y -= 0.5 * cm
     c.setLineWidth(0.5)
