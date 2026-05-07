@@ -17,6 +17,7 @@ from geral.models import ProcessoGeral
 from .context_processors import THEME_COOKIE, VALID_THEMES
 from .pdf_distribuicao import gerar_pdf_distribuicao
 from .services import (
+    distribuir_processos,
     fazendaria_report,
     geral_report,
     get_dashboard_summaries,
@@ -116,48 +117,42 @@ class DistribuicaoView(LoginRequiredMixin, TemplateView):
 
 
 class DistribuicaoPDFView(LoginRequiredMixin, View):
-    """Generate a PDF for the selected processes and responsible person."""
+    """Update selected processes and generate the distribution PDF."""
 
     def post(self, request: HttpRequest) -> HttpResponse:
-        responsavel = request.POST.get("responsavel", "").strip()
-        if not responsavel:
-            from django.contrib import messages
+        from django.contrib import messages
+
+        responsavel_raw = request.POST.get("responsavel", "").strip()
+        if not responsavel_raw:
             messages.error(request, "Selecione um responsável.")
             return HttpResponseRedirect(reverse("core:distribuicao"))
 
-        # Collect selected fazendaria process IDs
+        try:
+            procurador_id = int(responsavel_raw)
+        except (TypeError, ValueError):
+            messages.error(request, "Responsável inválido.")
+            return HttpResponseRedirect(reverse("core:distribuicao"))
+
+        if not Procurador.objects.filter(pk=procurador_id, ativo=True).exists():
+            messages.error(request, "Responsável inválido.")
+            return HttpResponseRedirect(reverse("core:distribuicao"))
+
         faz_ids = request.POST.getlist("faz")
-        # Collect selected geral process IDs
         ger_ids = request.POST.getlist("ger")
 
         if not faz_ids and not ger_ids:
-            from django.contrib import messages
             messages.error(request, "Selecione pelo menos um processo.")
             return HttpResponseRedirect(reverse("core:distribuicao"))
 
-        processos_data = []
-
-        if faz_ids:
-            faz_qs = ProcessoFazendaria.objects.filter(pk__in=faz_ids)
-            for p in faz_qs:
-                processos_data.append({
-                    "numero_processo": p.numero_processo,
-                    "ano": p.ano,
-                    "modulo": "Fazendária",
-                })
-
-        if ger_ids:
-            ger_qs = ProcessoGeral.objects.filter(pk__in=ger_ids)
-            for p in ger_qs:
-                processos_data.append({
-                    "numero_processo": p.numero_processo,
-                    "ano": p.ano,
-                    "modulo": "Geral",
-                })
+        result = distribuir_processos(
+            procurador_id=procurador_id,
+            fazendaria_ids=faz_ids,
+            geral_ids=ger_ids,
+        )
 
         buf = gerar_pdf_distribuicao(
-            processos=processos_data,
-            responsavel=responsavel,
+            processos=result.processos_pdf,
+            responsavel=result.responsavel_nome,
         )
 
         filename = "distribuicao_processos.pdf"
@@ -167,9 +162,10 @@ class DistribuicaoPDFView(LoginRequiredMixin, View):
             "distribuicao PDF generated",
             extra={
                 "user_id": request.user.pk,
-                "responsavel": responsavel,
-                "faz_count": len(faz_ids),
-                "ger_count": len(ger_ids),
+                "procurador_id": procurador_id,
+                "responsavel": result.responsavel_nome,
+                "fazendaria_atualizados": result.fazendaria_atualizados,
+                "geral_atualizados": result.geral_atualizados,
             },
         )
         return response

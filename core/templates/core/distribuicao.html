@@ -179,7 +179,7 @@
         <select name="responsavel" id="id_responsavel" class="form-control" required>
           <option value="">— Selecione —</option>
           {% for proc in procuradores %}
-            <option value="{{ proc.nome }}">{{ proc.nome }}</option>
+            <option value="{{ proc.pk }}">{{ proc.nome }}</option>
           {% endfor %}
         </select>
       </div>

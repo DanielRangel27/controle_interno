@@ -1,0 +1,16 @@
+---
+description: Mensagens de commit devem ser em portugues
+alwaysApply: true
+---
+
+# Commits em Portugues (PT-BR)
+
+- Sempre gere mensagens de commit em portugues (PT-BR).
+- Mantenha o padrao Conventional Commits no prefixo (`feat:`, `fix:`, `chore:`, `refactor:`, `test:`, `docs:`).
+- Escreva o restante da mensagem em portugues, de forma objetiva, explicando o motivo da mudanca.
+- Nao usar ingles no corpo da mensagem de commit, exceto nomes tecnicos inevitaveis.
+
+## Exemplo
+
+- `feat: adiciona data de distribuicao no processo fazendario`
+- `fix: corrige validacao de campos obrigatorios na distribuicao`

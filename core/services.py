@@ -428,6 +428,108 @@ class SearchHit:
     pk: int
 
 
+# ---------------------------------------------------------------------------
+# Distribuição: atualização de processos selecionados
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DistribuicaoResult:
+    """Outcome of a ``distribuir_processos`` call."""
+
+    fazendaria_atualizados: int
+    geral_atualizados: int
+    processos_pdf: list[dict[str, Any]]
+    responsavel_nome: str
+
+    @property
+    def total_atualizados(self) -> int:
+        return self.fazendaria_atualizados + self.geral_atualizados
+
+
+def distribuir_processos(
+    *,
+    procurador_id: int,
+    fazendaria_ids: list[int] | list[str],
+    geral_ids: list[int] | list[str],
+    data_distribuicao: dt.date | None = None,
+) -> DistribuicaoResult:
+    """Update selected processes with the assigned responsible person.
+
+    Sets, atomically, on every selected process:
+    - ``situacao`` -> "andamento"
+    - responsible foreign key -> the given procurador
+    - ``data_distribuicao`` -> the provided date (defaults to today)
+
+    Returns a summary plus the data needed to render the distribuição PDF.
+    """
+
+    from django.db import transaction
+
+    from core.models import Procurador
+    from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+    from geral.models import ProcessoGeral, SituacaoGeral
+
+    if data_distribuicao is None:
+        data_distribuicao = dt.date.today()
+
+    procurador = Procurador.objects.get(pk=procurador_id)
+
+    fazendaria_atualizados = 0
+    geral_atualizados = 0
+    processos_pdf: list[dict[str, Any]] = []
+
+    with transaction.atomic():
+        if fazendaria_ids:
+            faz_qs = ProcessoFazendaria.objects.filter(pk__in=fazendaria_ids)
+            for p in faz_qs:
+                processos_pdf.append(
+                    {
+                        "numero_processo": p.numero_processo,
+                        "ano": p.ano,
+                        "modulo": "Fazendária",
+                    }
+                )
+            fazendaria_atualizados = faz_qs.update(
+                procurador=procurador,
+                situacao=SituacaoFazendaria.ANDAMENTO,
+                data_distribuicao=data_distribuicao,
+            )
+
+        if geral_ids:
+            ger_qs = ProcessoGeral.objects.filter(pk__in=geral_ids)
+            for p in ger_qs:
+                processos_pdf.append(
+                    {
+                        "numero_processo": p.numero_processo,
+                        "ano": p.ano,
+                        "modulo": "Geral",
+                    }
+                )
+            geral_atualizados = ger_qs.update(
+                responsavel=procurador,
+                situacao=SituacaoGeral.ANDAMENTO,
+                data_distribuicao=data_distribuicao,
+            )
+
+    logger.info(
+        "distribuicao processos updated",
+        extra={
+            "procurador_id": procurador.pk,
+            "fazendaria_atualizados": fazendaria_atualizados,
+            "geral_atualizados": geral_atualizados,
+            "data_distribuicao": data_distribuicao.isoformat(),
+        },
+    )
+
+    return DistribuicaoResult(
+        fazendaria_atualizados=fazendaria_atualizados,
+        geral_atualizados=geral_atualizados,
+        processos_pdf=processos_pdf,
+        responsavel_nome=procurador.nome,
+    )
+
+
 def global_search(termo: str, limit_per_module: int = 25) -> list[SearchHit]:
     """Search by process number / observação across both modules."""
 

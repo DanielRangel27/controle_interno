@@ -46,6 +46,7 @@ class ProcessoFazendaria(TimestampedModel):
         blank=True,
     )
     data_recebimento = models.DateField("data de recebimento", null=True, blank=True)
+    data_distribuicao = models.DateField("data de distribuição", null=True, blank=True)
 
     assunto = models.ForeignKey(
         Assunto,

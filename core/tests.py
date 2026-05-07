@@ -857,3 +857,217 @@ class CoreSearchViewTests(TestCase):
         resp = self.client.get(reverse("core:busca"))
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "ABC123/26")
+
+
+class DistribuirProcessosServiceTests(TestCase):
+    """Tests for the ``distribuir_processos`` service helper."""
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        from core.models import Modulo, Procurador
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+        from geral.models import ProcessoGeral, SituacaoGeral
+
+        cls.procurador = Procurador.objects.create(
+            nome="Dra. Distribuidora", modulo=Modulo.AMBOS
+        )
+        cls.faz1 = ProcessoFazendaria.objects.create(
+            numero_processo="500/26",
+            ano=2026,
+            situacao=SituacaoFazendaria.DISTRIBUICAO,
+        )
+        cls.faz2 = ProcessoFazendaria.objects.create(
+            numero_processo="501/26",
+            ano=2026,
+            situacao=SituacaoFazendaria.DISTRIBUICAO,
+        )
+        cls.ger1 = ProcessoGeral.objects.create(
+            numero_processo="900/26",
+            ano=2026,
+            situacao=SituacaoGeral.DISTRIBUICAO,
+        )
+        cls.ger2 = ProcessoGeral.objects.create(
+            numero_processo="901/26",
+            ano=2026,
+            situacao=SituacaoGeral.DISTRIBUICAO,
+        )
+
+    def test_updates_both_modules_with_today(self) -> None:
+        from core.services import distribuir_processos
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+        from geral.models import ProcessoGeral, SituacaoGeral
+
+        result = distribuir_processos(
+            procurador_id=self.procurador.pk,
+            fazendaria_ids=[self.faz1.pk, self.faz2.pk],
+            geral_ids=[self.ger1.pk],
+        )
+        today = dt.date.today()
+
+        self.assertEqual(result.fazendaria_atualizados, 2)
+        self.assertEqual(result.geral_atualizados, 1)
+        self.assertEqual(result.responsavel_nome, "Dra. Distribuidora")
+        self.assertEqual(len(result.processos_pdf), 3)
+
+        for faz in ProcessoFazendaria.objects.filter(pk__in=[self.faz1.pk, self.faz2.pk]):
+            self.assertEqual(faz.procurador_id, self.procurador.pk)
+            self.assertEqual(faz.situacao, SituacaoFazendaria.ANDAMENTO)
+            self.assertEqual(faz.data_distribuicao, today)
+
+        ger1 = ProcessoGeral.objects.get(pk=self.ger1.pk)
+        self.assertEqual(ger1.responsavel_id, self.procurador.pk)
+        self.assertEqual(ger1.situacao, SituacaoGeral.ANDAMENTO)
+        self.assertEqual(ger1.data_distribuicao, today)
+
+        ger2 = ProcessoGeral.objects.get(pk=self.ger2.pk)
+        self.assertEqual(ger2.situacao, SituacaoGeral.DISTRIBUICAO)
+        self.assertIsNone(ger2.responsavel_id)
+        self.assertIsNone(ger2.data_distribuicao)
+
+    def test_accepts_explicit_date(self) -> None:
+        from core.services import distribuir_processos
+        from geral.models import ProcessoGeral
+
+        custom = dt.date(2026, 4, 1)
+        distribuir_processos(
+            procurador_id=self.procurador.pk,
+            fazendaria_ids=[],
+            geral_ids=[self.ger1.pk],
+            data_distribuicao=custom,
+        )
+        ger1 = ProcessoGeral.objects.get(pk=self.ger1.pk)
+        self.assertEqual(ger1.data_distribuicao, custom)
+
+
+class DistribuicaoPDFViewTests(TestCase):
+    """Integration tests for the ``DistribuicaoPDFView`` endpoint."""
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        from django.contrib.auth import get_user_model
+
+        from core.models import Modulo, Procurador
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+        from geral.models import ProcessoGeral, SituacaoGeral
+
+        cls.user = get_user_model().objects.create_user(username="dist", password="x")
+        cls.procurador = Procurador.objects.create(
+            nome="Dr. Responsável", modulo=Modulo.AMBOS
+        )
+        cls.procurador_inativo = Procurador.objects.create(
+            nome="Dra. Inativa", modulo=Modulo.AMBOS, ativo=False
+        )
+        cls.faz = ProcessoFazendaria.objects.create(
+            numero_processo="700/26",
+            ano=2026,
+            situacao=SituacaoFazendaria.DISTRIBUICAO,
+        )
+        cls.ger = ProcessoGeral.objects.create(
+            numero_processo="800/26",
+            ano=2026,
+            situacao=SituacaoGeral.DISTRIBUICAO,
+        )
+
+    def setUp(self) -> None:
+        self.client.login(username="dist", password="x")
+
+    def test_post_updates_processes_and_returns_pdf(self) -> None:
+        from django.urls import reverse
+
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+        from geral.models import ProcessoGeral, SituacaoGeral
+
+        resp = self.client.post(
+            reverse("core:distribuicao_pdf"),
+            data={
+                "responsavel": str(self.procurador.pk),
+                "faz": [str(self.faz.pk)],
+                "ger": [str(self.ger.pk)],
+            },
+        )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp["Content-Type"], "application/pdf")
+
+        today = dt.date.today()
+        faz = ProcessoFazendaria.objects.get(pk=self.faz.pk)
+        self.assertEqual(faz.procurador_id, self.procurador.pk)
+        self.assertEqual(faz.situacao, SituacaoFazendaria.ANDAMENTO)
+        self.assertEqual(faz.data_distribuicao, today)
+
+        ger = ProcessoGeral.objects.get(pk=self.ger.pk)
+        self.assertEqual(ger.responsavel_id, self.procurador.pk)
+        self.assertEqual(ger.situacao, SituacaoGeral.ANDAMENTO)
+        self.assertEqual(ger.data_distribuicao, today)
+
+    def test_post_without_responsavel_does_not_update(self) -> None:
+        from django.urls import reverse
+
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+
+        resp = self.client.post(
+            reverse("core:distribuicao_pdf"),
+            data={"faz": [str(self.faz.pk)]},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("core:distribuicao"))
+
+        faz = ProcessoFazendaria.objects.get(pk=self.faz.pk)
+        self.assertEqual(faz.situacao, SituacaoFazendaria.DISTRIBUICAO)
+        self.assertIsNone(faz.procurador_id)
+        self.assertIsNone(faz.data_distribuicao)
+
+    def test_post_without_processos_does_not_update(self) -> None:
+        from django.urls import reverse
+
+        from geral.models import ProcessoGeral, SituacaoGeral
+
+        resp = self.client.post(
+            reverse("core:distribuicao_pdf"),
+            data={"responsavel": str(self.procurador.pk)},
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, reverse("core:distribuicao"))
+
+        ger = ProcessoGeral.objects.get(pk=self.ger.pk)
+        self.assertEqual(ger.situacao, SituacaoGeral.DISTRIBUICAO)
+        self.assertIsNone(ger.responsavel_id)
+        self.assertIsNone(ger.data_distribuicao)
+
+    def test_post_with_invalid_responsavel_does_not_update(self) -> None:
+        from django.urls import reverse
+
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+
+        resp = self.client.post(
+            reverse("core:distribuicao_pdf"),
+            data={
+                "responsavel": "999999",
+                "faz": [str(self.faz.pk)],
+            },
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        faz = ProcessoFazendaria.objects.get(pk=self.faz.pk)
+        self.assertEqual(faz.situacao, SituacaoFazendaria.DISTRIBUICAO)
+        self.assertIsNone(faz.procurador_id)
+
+    def test_post_with_inactive_responsavel_does_not_update(self) -> None:
+        from django.urls import reverse
+
+        from fazendaria.models import ProcessoFazendaria, SituacaoFazendaria
+
+        resp = self.client.post(
+            reverse("core:distribuicao_pdf"),
+            data={
+                "responsavel": str(self.procurador_inativo.pk),
+                "faz": [str(self.faz.pk)],
+            },
+        )
+
+        self.assertEqual(resp.status_code, 302)
+        faz = ProcessoFazendaria.objects.get(pk=self.faz.pk)
+        self.assertEqual(faz.situacao, SituacaoFazendaria.DISTRIBUICAO)
+        self.assertIsNone(faz.procurador_id)
