@@ -53,6 +53,8 @@ class ProcessoGeralForm(forms.ModelForm):
         self.fields["responsavel"].queryset = responsavel_qs
         self.fields["responsavel_secundario"].queryset = responsavel_qs
         self.fields["tipos_parecer"].queryset = TipoParecer.objects.filter(ativo=True)
+        if not self.instance.pk and not self.is_bound:
+            self.initial.setdefault("situacao", SituacaoGeral.DISTRIBUICAO)
         if self.instance.pk:
             if self.instance.assunto:
                 self.initial["assunto_nome"] = self.instance.assunto.nome

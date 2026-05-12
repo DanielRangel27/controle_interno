@@ -49,6 +49,8 @@ class ProcessoFazendariaForm(forms.ModelForm):
             ativo=True, modulo__in=[Modulo.FAZENDARIA, Modulo.AMBOS]
         )
         self.fields["tipos_parecer"].queryset = TipoParecer.objects.filter(ativo=True)
+        if not self.instance.pk and not self.is_bound:
+            self.initial.setdefault("situacao", SituacaoFazendaria.DISTRIBUICAO)
         if self.instance.pk:
             if self.instance.assunto:
                 self.initial["assunto_nome"] = self.instance.assunto.nome
